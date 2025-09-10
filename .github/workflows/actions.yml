@@ -1,0 +1,46 @@
+name: Github CI
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+
+      - name: Install Codon
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "${HOME}/.codon"
+          curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz \
+            | tar zxvf - --strip-components=1 -C "${HOME}/.codon"
+          mkdir -p "${HOME}/.codon/lib/codon/plugins"
+          curl -L https://github.com/exaloop/seq/releases/download/v0.11.5/seq-linux-x86_64.tar.gz \
+            | tar zxvf - -C "${HOME}/.codon/lib/codon/plugins"
+          echo "${HOME}/.codon/bin" >> "${GITHUB_PATH}"
+          codon --version || true
+
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up Codon Python bridge
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export CODON_PYTHON=$(curl -L https://raw.githubusercontent.com/exaloop/codon/refs/heads/develop/test/python/find-python-library.py | python)
+          echo "Found Python at: ${CODON_PYTHON}"
+
+      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+
+      - name: Week 1
+        shell: bash
+        run: bash week1/evaluate.sh
+
