@@ -1,5 +1,0 @@
-# AI usage log for Week 1
-Models used:
-Prompts used (summaries or full text):
-Tools (plugins, code assistance):
-Key decisions made with LLM help:
