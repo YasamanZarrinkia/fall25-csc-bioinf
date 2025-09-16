@@ -1,0 +1,5 @@
+# Week 1 ignores
+week1/code/genome-assembly/__pycache__/
+week1/code/genome-assembly/*.pyc
+week1/code/genome-assembly/.venv/
+week1/data/*.zip
