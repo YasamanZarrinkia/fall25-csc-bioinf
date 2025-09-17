@@ -3,3 +3,18 @@ week1/code/genome-assembly/__pycache__/
 week1/code/genome-assembly/*.pyc
 week1/code/genome-assembly/.venv/
 week1/data/*.zip
+
+# Ignore build/run artifacts
+__pycache__/
+*.DS_Store
+tmp/
+week1/data/*/contig*.fasta
+# Generated contigs
+week1/data/*/contig.fasta
+week1/data/*/contig_py.fasta
+week1/data/*/contig_codon.fasta
+
+# Temp directories and backups
+tmp/
+week1/tmp/
+*.bak
