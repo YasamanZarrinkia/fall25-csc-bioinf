@@ -17,14 +17,14 @@ def main() -> None:
     dbg: DBG = DBG(k=k, data_list=[short1, short2, long1])
 
     # === DEBUG: quick graph stats ===
-    node_count = len(dbg.nodes)
-    edge_count = 0
-    alive_nodes = 0
-    for n in dbg.nodes:
-        if n.alive:
-            alive_nodes += 1
-            edge_count += len(n.children)
-    print("DEBUG graph:", "nodes=", node_count, "alive=", alive_nodes, "edges=", edge_count)
+    # node_count = len(dbg.nodes)
+    # edge_count = 0
+    # alive_nodes = 0
+    # for n in dbg.nodes:
+    #     if n.alive:
+    #         alive_nodes += 1
+    #         edge_count += len(n.children)
+    # print("DEBUG graph:", "nodes=", node_count, "alive=", alive_nodes, "edges=", edge_count)
     # =================================
 
     out_path: str = data_dir + "/contig.fasta"

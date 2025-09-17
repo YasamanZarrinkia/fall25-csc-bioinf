@@ -1,20 +1,39 @@
-# Week 1 ignores
-week1/code/genome-assembly/__pycache__/
-week1/code/genome-assembly/*.pyc
-week1/code/genome-assembly/.venv/
-week1/data/*.zip
-
-# Ignore build/run artifacts
+# --- Python cache / venv ---
 __pycache__/
-*.DS_Store
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.egg-info/
+.venv/
+.env/
+venv/
+
+# --- Jupyter / IDE / OS ---
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store
+
+# --- Temporary and log files ---
 tmp/
-week1/data/*/contig*.fasta
-# Generated contigs
+*.log
+*.bak
+*.swp
+
+# --- Build artifacts ---
+*.so
+*.o
+*.out
+
+# --- Data outputs ---
+# Ignore contigs inside data directories
 week1/data/*/contig.fasta
 week1/data/*/contig_py.fasta
 week1/data/*/contig_codon.fasta
 
-# Temp directories and backups
-tmp/
-week1/tmp/
-*.bak
+# Allow contigs inside test directories (these should be tracked)
+!week1/test/*/contig.fasta
+!week1/test/*/contig_py.fasta
+!week1/test/*/contig_codon.fasta
+

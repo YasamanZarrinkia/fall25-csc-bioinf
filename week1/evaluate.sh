@@ -13,7 +13,8 @@ fi
 PY_DIR="${PY_DIR:-$ROOT/week1/code/genome-assembly}"
 CODON_DIR="${CODON_DIR:-$ROOT/week1/code/genome-assembly-codon}"
 DATA_BASE="${DATA_BASE:-$ROOT/week1/data}"
-OUT_DIR="${OUT_DIR:-$ROOT/tmp}"
+TEST_BASE="${TEST_BASE:-$ROOT/week1/test}"      # <- outputs go here
+OUT_DIR="${OUT_DIR:-$ROOT/tmp}"                 # logs/timings here
 DATASETS=(${DATASETS:-data1 data2 data3 data4})
 
 # Timeouts (seconds)
@@ -28,7 +29,8 @@ DOCKER_PLATFORM_CODON="${DOCKER_PLATFORM_CODON:-linux/amd64}"  # safer on Apple 
 DOCKER_CPUS="${DOCKER_CPUS:-4}"
 DOCKER_MEM="${DOCKER_MEM:-8g}"
 
-mkdir -p "$OUT_DIR"
+mkdir -p "$OUT_DIR" "$TEST_BASE"
+for ds in "${DATASETS[@]}"; do mkdir -p "$TEST_BASE/$ds"; done
 
 ### ── Helpers ─────────────────────────────────────────────────────────────────
 have() { command -v "$1" >/dev/null 2>&1; }
@@ -66,7 +68,7 @@ PY
 prepare_python_local(){
   if have python3; then
     python3 -m pip install --upgrade pip >/dev/null 2>&1 || true
-    # matplotlib only if your Python code imports it
+    # Only needed if your Python code imports matplotlib
     python3 -m pip install --no-cache-dir matplotlib >/dev/null 2>&1 || true
   fi
 }
@@ -79,32 +81,37 @@ prepare_codon_local(){
 }
 
 ### ── Python runners ───────────────────────────────────────────────────────────
+# NOTE: both Python and Codon binaries always write to DATA_BASE/<ds>/contig.fasta.
+# We then move that file into TEST_BASE/<ds>/contig_{py|codon}.fasta.
+
 run_python_local(){
-  local ds="$1" d="$DATA_BASE/$ds" of="$OUT_DIR/${ds}.py.stdout" ef="$OUT_DIR/${ds}.py.stderr"
+  local ds="$1" d="$DATA_BASE/$ds" outd="$TEST_BASE/$ds"
+  local of="$OUT_DIR/${ds}.py.stdout" ef="$OUT_DIR/${ds}.py.stderr"
   [ -d "$d" ] || { echo "-,NA"; return; }
-  rm -f "$d/contig.fasta" "$d/contig_py.fasta"
+  rm -f "$d/contig.fasta" "$outd/contig_py.fasta"
   (ulimit -s 8192000 || true) >/dev/null 2>&1
   local secs; secs="$(run_with_time "timeout $PY_TIMEOUT_SEC python3 \"$PY_DIR/main.py\" \"$d\"" "$of" "$ef" || true)"
-  [ -f "$d/contig.fasta" ] && mv -f "$d/contig.fasta" "$d/contig_py.fasta" || true
+  [ -f "$d/contig.fasta" ] && mv -f "$d/contig.fasta" "$outd/contig_py.fasta" || true
   local pretty="-"; [ -n "${secs:-}" ] && pretty="$(fmt_time "$secs")"
-  echo "${pretty},$(n50_of_fasta "$d/contig_py.fasta")"
+  echo "${pretty},$(n50_of_fasta "$outd/contig_py.fasta")"
 }
 
 run_python_docker(){
-  local ds="$1" d="$DATA_BASE/$ds" of="$OUT_DIR/${ds}.py.stdout" ef="$OUT_DIR/${ds}.py.stderr"
+  local ds="$1" d="$DATA_BASE/$ds" outd="$TEST_BASE/$ds"
+  local of="$OUT_DIR/${ds}.py.stdout" ef="$OUT_DIR/${ds}.py.stderr"
   [ -d "$d" ] || { echo "-,NA"; return; }
-  rm -f "$d/contig.fasta" "$d/contig_py.fasta"
+  rm -f "$d/contig.fasta" "$outd/contig_py.fasta"
   local plat=""; [ -n "$DOCKER_PLATFORM_PY" ] && plat="--platform=$DOCKER_PLATFORM_PY"
   local cmd="pip install -q matplotlib && MPLBACKEND=Agg timeout $PY_TIMEOUT_SEC python3 main.py \"$d\""
   local secs; secs="$(run_with_time "docker run --rm $plat -v \"$ROOT\":\"$ROOT\" -w \"$PY_DIR\" python:3.11-slim bash -lc '$cmd'" "$of" "$ef" || true)"
-  [ -f "$d/contig.fasta" ] && mv -f "$d/contig.fasta" "$d/contig_py.fasta" || true
+  [ -f "$d/contig.fasta" ] && mv -f "$d/contig.fasta" "$outd/contig_py.fasta" || true
   local pretty="-"; [ -n "${secs:-}" ] && pretty="$(fmt_time "$secs")"
-  echo "${pretty},$(n50_of_fasta "$d/contig_py.fasta")"
+  echo "${pretty},$(n50_of_fasta "$outd/contig_py.fasta")"
 }
 
 run_python_dataset(){
   local ds="$1"
-  case "$USE_DOCKER_PY" in
+  case "${USE_DOCKER_PY}" in
     true)  run_python_docker "$ds" ;;
     false) run_python_local  "$ds" ;;
     *)     if have python3; then run_python_local "$ds"
@@ -115,22 +122,24 @@ run_python_dataset(){
 
 ### ── Codon runners ────────────────────────────────────────────────────────────
 run_codon_local(){
-  local ds="$1" d="$DATA_BASE/$ds" of="$OUT_DIR/${ds}.codon.stdout" ef="$OUT_DIR/${ds}.codon.stderr"
+  local ds="$1" d="$DATA_BASE/$ds" outd="$TEST_BASE/$ds"
+  local of="$OUT_DIR/${ds}.codon.stdout" ef="$OUT_DIR/${ds}.codon.stderr"
   [ -d "$d" ] || { echo "-,NA"; return; }
-  rm -f "$d/contig.fasta" "$d/contig_codon.fasta"
+  rm -f "$d/contig.fasta" "$outd/contig_codon.fasta"
   local secs; secs="$(run_with_time "timeout $CODON_TIMEOUT_SEC codon run -release \"$CODON_DIR/main.py\" \"$d\"" "$of" "$ef" || true)"
   if [ -z "${secs:-}" ]; then
     secs="$(run_with_time "timeout $CODON_TIMEOUT_SEC codon run \"$CODON_DIR/main.py\" \"$d\"" "$of" "$ef" || true)"
   fi
-  [ -f "$d/contig.fasta" ] && mv -f "$d/contig.fasta" "$d/contig_codon.fasta" || true
+  [ -f "$d/contig.fasta" ] && mv -f "$d/contig.fasta" "$outd/contig_codon.fasta" || true
   local pretty="-"; [ -n "${secs:-}" ] && pretty="$(fmt_time "$secs")"
-  echo "${pretty},$(n50_of_fasta "$d/contig_codon.fasta")"
+  echo "${pretty},$(n50_of_fasta "$outd/contig_codon.fasta")"
 }
 
 run_codon_docker(){
-  local ds="$1" d="$DATA_BASE/$ds" of="$OUT_DIR/${ds}.codon.stdout" ef="$OUT_DIR/${ds}.codon.stderr"
+  local ds="$1" d="$DATA_BASE/$ds" outd="$TEST_BASE/$ds"
+  local of="$OUT_DIR/${ds}.codon.stdout" ef="$OUT_DIR/${ds}.codon.stderr"
   [ -d "$d" ] || { echo "-,NA"; return; }
-  rm -f "$d/contig.fasta" "$d/contig_codon.fasta"
+  rm -f "$d/contig.fasta" "$outd/contig_codon.fasta"
   local plat="--platform=${DOCKER_PLATFORM_CODON}"
   local res="--cpus=${DOCKER_CPUS} --memory=${DOCKER_MEM}"
   local cmd="timeout $CODON_TIMEOUT_SEC codon run -release main.py \"$d\""
@@ -139,14 +148,14 @@ run_codon_docker(){
     cmd="timeout $CODON_TIMEOUT_SEC codon run main.py \"$d\""
     secs="$(run_with_time "docker run --rm $plat $res -v \"$ROOT\":\"$ROOT\" -w \"$CODON_DIR\" exaloop/codon:latest bash -lc '$cmd'" "$of" "$ef" || true)"
   fi
-  [ -f "$d/contig.fasta" ] && mv -f "$d/contig.fasta" "$d/contig_codon.fasta" || true
+  [ -f "$d/contig.fasta" ] && mv -f "$d/contig.fasta" "$outd/contig_codon.fasta" || true
   local pretty="-"; [ -n "${secs:-}" ] && pretty="$(fmt_time "$secs")"
-  echo "${pretty},$(n50_of_fasta "$d/contig_codon.fasta")"
+  echo "${pretty},$(n50_of_fasta "$outd/contig_codon.fasta")"
 }
 
 run_codon_dataset(){
   local ds="$1"
-  case "$USE_DOCKER_CODON" in
+  case "${USE_DOCKER_CODON}" in
     true)  run_codon_docker "$ds" ;;
     false) run_codon_local  "$ds" ;;
     *)     if have codon; then run_codon_local "$ds"
