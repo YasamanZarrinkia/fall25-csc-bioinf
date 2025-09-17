@@ -7,7 +7,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -17,7 +16,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      # Optional: speed up pip installs across runs
       - name: Pip cache
         uses: actions/cache@v4
         with:
@@ -28,36 +26,28 @@ jobs:
 
       - name: Install Codon (Linux x86_64)
         run: |
-            mkdir -p "${HOME}/.codon"
-            curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz \
-              | tar zxvf - --strip-components=1 -C "${HOME}/.codon"
-            curl -L https://github.com/exaloop/seq/releases/download/v0.11.5/seq-linux-x86_64.tar.gz \
-              | tar zxvf - -C "${HOME}/.codon/lib/codon/plugins"
-            echo "PATH=${HOME}/.codon/bin:${PATH}" >> "$GITHUB_ENV"
+          mkdir -p "${HOME}/.codon"
+          curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz \
+            | tar zxvf - --strip-components=1 -C "${HOME}/.codon"
+          curl -L https://github.com/exaloop/seq/releases/download/v0.11.5/seq-linux-x86_64.tar.gz \
+            | tar zxvf - -C "${HOME}/.codon/lib/codon/plugins"
+          echo "PATH=${HOME}/.codon/bin:${PATH}" >> "$GITHUB_ENV"
 
       - name: Set up Codon ↔ Python bridge
         run: |
           python -m pip install --upgrade pip
           python -m pip install find_libpython matplotlib
-          # Persist CODON_PYTHON so Codon can embed/locate Python
-          echo "CODON_PYTHON=$(python - <<'PY'
-import find_libpython; print(find_libpython.find_libpython())
-PY
-)" >> "$GITHUB_ENV"
+          echo "CODON_PYTHON=$(python -c 'import find_libpython; print(find_libpython.find_libpython())')" >> "$GITHUB_ENV"
 
       - name: Make evaluate.sh executable
         run: chmod +x week1/evaluate.sh
 
-      # Run your evaluation script. We don’t need Docker on GitHub Linux amd64.
-      # If you DO want Docker, you can set USE_DOCKER_* env vars here.
       - name: Run Week 1 evaluation
         env:
           USE_DOCKER_PY: "false"
           USE_DOCKER_CODON: "false"
-        run: |
-          bash week1/evaluate.sh
+        run: bash week1/evaluate.sh
 
-      # Upload test artifacts so you can download contigs & logs from the run page
       - name: Upload outputs (contigs & logs)
         uses: actions/upload-artifact@v4
         with:
