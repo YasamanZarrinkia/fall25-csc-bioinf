@@ -1,27 +1,69 @@
-name: Github CI
-on: [push]
+name: Week 1 CI
+
+on:
+  push:
+  pull_request:
+
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Install Codon
-        run: |
-          mkdir -p ${HOME}/.codon
-          curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz | tar zxvf - --strip-components=1 -C ${HOME}/.codon
-          curl -L https://github.com/exaloop/seq/releases/download/v0.11.5/seq-linux-x86_64.tar.gz | tar zxvf - -C ${HOME}/.codon/lib/codon/plugins
-          export PATH=${PATH}:${HOME}/.codon/bin
-      - name: Check out repository code
-        uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
-      - name: Set up Codon Python bridge
+          python-version: "3.11"
+
+      # Optional: speed up pip installs across runs
+      - name: Pip cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Codon (Linux x86_64)
         run: |
-          pip install find_libpython
-          export CODON_PYTHON=$(find_libpython)
-          echo "Found Python at: ${CODON_PYTHON}"
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+            mkdir -p "${HOME}/.codon"
+            curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz \
+              | tar zxvf - --strip-components=1 -C "${HOME}/.codon"
+            curl -L https://github.com/exaloop/seq/releases/download/v0.11.5/seq-linux-x86_64.tar.gz \
+              | tar zxvf - -C "${HOME}/.codon/lib/codon/plugins"
+            echo "PATH=${HOME}/.codon/bin:${PATH}" >> "$GITHUB_ENV"
+
+      - name: Set up Codon ↔ Python bridge
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install find_libpython matplotlib
+          # Persist CODON_PYTHON so Codon can embed/locate Python
+          echo "CODON_PYTHON=$(python - <<'PY'
+import find_libpython; print(find_libpython.find_libpython())
+PY
+)" >> "$GITHUB_ENV"
+
+      - name: Make evaluate.sh executable
+        run: chmod +x week1/evaluate.sh
+
+      # Run your evaluation script. We don’t need Docker on GitHub Linux amd64.
+      # If you DO want Docker, you can set USE_DOCKER_* env vars here.
+      - name: Run Week 1 evaluation
+        env:
+          USE_DOCKER_PY: "false"
+          USE_DOCKER_CODON: "false"
+        run: |
+          bash week1/evaluate.sh
+
+      # Upload test artifacts so you can download contigs & logs from the run page
+      - name: Upload outputs (contigs & logs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: week1-artifacts
+          path: |
+            week1/test/
+            tmp/
+          if-no-files-found: warn
+
