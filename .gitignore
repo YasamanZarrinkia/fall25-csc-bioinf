@@ -37,3 +37,6 @@ week1/data/*/contig_codon.fasta
 !week1/test/*/contig_py.fasta
 !week1/test/*/contig_codon.fasta
 
+
+# Week 2 test artifacts
+week2/test/.pytest_cache/
