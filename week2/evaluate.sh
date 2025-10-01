@@ -4,11 +4,8 @@ set -e  # Exit on any error
 
 echo "🚀 Starting Week 2 Evaluation - Codon TRViz Implementation"
 
-# Change to code directory
-cd code
-
 echo "📁 Checking required files..."
-required_files=("decomposer.py" "main.py" "test_codon.py" "test_python.py")
+required_files=("code/decomposer.py" "code/main.py" "code/test_codon.py" "code/test_python.py")
 missing_files=0
 for file in "${required_files[@]}"; do
     if [ -f "$file" ]; then
@@ -26,7 +23,7 @@ fi
 
 echo ""
 echo "🧪 Running Codon tests..."
-if codon run test_codon.py; then
+if codon run code/test_codon.py; then
     echo "✅ Codon tests passed"
 else
     echo "❌ Codon tests failed"
@@ -35,7 +32,7 @@ fi
 
 echo ""
 echo "🐍 Running Python tests..."
-if python test_python.py; then
+if python code/test_python.py; then
     echo "✅ Python tests passed"
 else
     echo "❌ Python tests failed"
@@ -45,6 +42,8 @@ fi
 echo ""
 echo "🔧 Testing basic decomposition functionality..."
 python -c "
+import sys
+sys.path.append('code')
 from decomposer import Decomposer
 print('Testing perfect repeats...')
 d = Decomposer('DP')
@@ -62,6 +61,8 @@ print('✅ Basic decomposition tests passed')
 echo ""
 echo "🔄 Testing integration pipeline..."
 python -c "
+import sys
+sys.path.append('code')
 from main import TandemRepeatVizWorker
 worker = TandemRepeatVizWorker()
 print('Testing small integration...')
