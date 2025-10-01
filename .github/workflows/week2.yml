@@ -35,10 +35,16 @@ jobs:
       - name: Install Codon
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p "$HOME/.codon"
-          curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz \
-            | tar zxvf - --strip-components=1 -C "$HOME/.codon"
+          # Download the deploy archive that matches your logs
+          curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-deploy-linux-x86_64.tar.gz -o /tmp/codon.tar.gz
+          tar -xzf /tmp/codon.tar.gz -C "$HOME/.codon" --strip-components=1
+          ls -la "$HOME/.codon/bin" || true
+          # Make codon available now and in later steps
+          export PATH="$HOME/.codon/bin:$PATH"
           echo "$HOME/.codon/bin" >> "$GITHUB_PATH"
+          which codon
           codon --version
 
       - name: Make evaluator executable
