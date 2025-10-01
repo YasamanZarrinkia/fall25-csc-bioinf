@@ -50,8 +50,7 @@ jobs:
         env:
           USE_DOCKER_PY: "false"
           USE_DOCKER_CODON: "false"
-        working-directory: week2
-        run: bash evaluate.sh
+        run: bash week2/evaluate.sh
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
