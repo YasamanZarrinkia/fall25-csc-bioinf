@@ -36,14 +36,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.codon"
+          mkdir -p "\$HOME/.codon"
           TMP=/tmp/codon.tar.gz
 
           try_fetch () {
-            local url="$1"
-            echo "Fetching: $url"
-            if curl -fL --retry 3 --retry-delay 2 -o "$TMP" "$url"; then
-              if file "$TMP" | grep -qi 'gzip compressed data'; then
+            local url="\$1"
+            echo "Fetching: \$url"
+            if curl -fL --retry 3 --retry-delay 2 -o "\$TMP" "\$url"; then
+              if file "\$TMP" | grep -qi 'gzip compressed data'; then
                 echo "Got a valid gzip archive."
                 return 0
               else
@@ -51,7 +51,7 @@ jobs:
                 return 1
               fi
             else
-              echo "curl failed for $url"
+              echo "curl failed for \$url"
               return 1
             fi
           }
@@ -63,12 +63,12 @@ jobs:
           fi
 
           # Extract
-          tar -xzf "$TMP" -C "$HOME/.codon" --strip-components=1
-          ls -la "$HOME/.codon/bin" || true
+          tar -xzf "\$TMP" -C "\$HOME/.codon" --strip-components=1
+          ls -la "\$HOME/.codon/bin" || true
 
           # Make available now and later
-          export PATH="$HOME/.codon/bin:$PATH"
-          echo "$HOME/.codon/bin" >> "$GITHUB_PATH"
+          export PATH="\$HOME/.codon/bin:\$PATH"
+          echo "\$HOME/.codon/bin" >> "\$GITHUB_PATH"
 
           which codon
           codon --version
