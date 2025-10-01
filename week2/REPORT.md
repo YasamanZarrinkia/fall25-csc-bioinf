@@ -157,3 +157,5 @@ with consistent imports in local runs and CI.
 - **Not converted:** HMM/CY modes, NumPy/pomegranate pieces, Matplotlib visualizer.  
 - **Tests:** two files (Codon vs Python) for stability; they validate the same logic and cases.  
 - **CI:** robust Codon install, Python deps, and a single evaluator running both paths.
+
+PS: AI tools were used to help draft this report.
