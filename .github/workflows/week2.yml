@@ -32,18 +32,44 @@ jobs:
           print("✅ trviz:", getattr(trviz, "__version__", "unknown"))
           EOF
 
-      - name: Install Codon
+      - name: Install Codon (robust)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.codon"
-          # Download the deploy archive that matches your logs
-          curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-deploy-linux-x86_64.tar.gz -o /tmp/codon.tar.gz
-          tar -xzf /tmp/codon.tar.gz -C "$HOME/.codon" --strip-components=1
+          TMP=/tmp/codon.tar.gz
+
+          try_fetch () {
+            local url="$1"
+            echo "Fetching: $url"
+            if curl -fL --retry 3 --retry-delay 2 -o "$TMP" "$url"; then
+              if file "$TMP" | grep -qi 'gzip compressed data'; then
+                echo "Got a valid gzip archive."
+                return 0
+              else
+                echo "Downloaded file is not gzip; maybe a 404 HTML page."
+                return 1
+              fi
+            else
+              echo "curl failed for $url"
+              return 1
+            fi
+          }
+
+          # Try both common asset names for v0.19.3
+          if ! try_fetch "https://github.com/exaloop/codon/releases/download/v0.19.3/codon-deploy-linux-x86_64.tar.gz"; then
+            echo "Retrying with alternate asset name..."
+            try_fetch "https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz"
+          fi
+
+          # Extract
+          tar -xzf "$TMP" -C "$HOME/.codon" --strip-components=1
           ls -la "$HOME/.codon/bin" || true
-          # Make codon available now and in later steps
+
+          # Make available now and later
           export PATH="$HOME/.codon/bin:$PATH"
           echo "$HOME/.codon/bin" >> "$GITHUB_PATH"
+
           which codon
           codon --version
 
