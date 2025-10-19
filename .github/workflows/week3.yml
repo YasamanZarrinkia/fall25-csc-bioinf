@@ -1,24 +1,23 @@
-name: Github CI
+name: Week 3 CI
 
 on:
   push:
   pull_request:
 
 jobs:
-  test:
+  test-week3:
     runs-on: ubuntu-latest
 
     steps:
       - name: 🔎 Checkout repo
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python (3.11 recommended for Biotite)
+      - name: 🐍 Set up Python (3.11)
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: '3.11'   # ← no cache here
 
-      - name: 📦 Install Python deps (Biotite tests)
+      - name: 📦 Install Python deps (Biotite test side)
         run: |
           python -m pip install --upgrade pip
           pip install numpy biotite find_libpython
@@ -30,22 +29,23 @@ jobs:
             | tar zxvf - --strip-components=1 -C "${HOME}/.codon"
           curl -L https://github.com/exaloop/seq/releases/download/v0.11.5/seq-linux-x86_64.tar.gz \
             | tar zxvf - -C "${HOME}/.codon/lib/codon/plugins"
-          # Add Codon to PATH for subsequent steps
           echo "${HOME}/.codon/bin" >> "$GITHUB_PATH"
 
-      - name: 🔗 Configure Codon Python bridge (optional but safe)
+      - name: 🔗 Configure Codon Python bridge (optional)
         run: |
-          # Point Codon at the system's libpython so python bridge works if needed
-          LIBPY=$(python -c "import find_libpython; print(find_libpython.find_libpython())")
-          echo "CODON_PYTHON=${LIBPY}" >> "$GITHUB_ENV"
-          echo "Using libpython: ${LIBPY}"
+          python - <<'PY'
+          import find_libpython, os
+          lib = find_libpython.find_libpython()
+          print("Using libpython:", lib)
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"CODON_PYTHON={lib}\n")
+          PY
 
-      - name: ▶️ Make week3/evaluate.sh executable (if not already)
+      - name: ▶️ Make week3/evaluate.sh executable
         run: chmod +x week3/evaluate.sh
 
-      - name: 🧪 Run Week 3 tests (Python + Codon)
+      - name: 🧪 Run Week 3 tests
         working-directory: week3
-        shell: bash
         run: |
           set -e
           ./evaluate.sh | tee /tmp/eval.out
@@ -54,4 +54,3 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           cat /tmp/eval.out >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-
