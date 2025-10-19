@@ -1,0 +1,57 @@
+name: Github CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🔎 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python (3.11 recommended for Biotite)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install Python deps (Biotite tests)
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy biotite find_libpython
+
+      - name: 🧬 Install Codon + seq plugin
+        run: |
+          mkdir -p "${HOME}/.codon"
+          curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz \
+            | tar zxvf - --strip-components=1 -C "${HOME}/.codon"
+          curl -L https://github.com/exaloop/seq/releases/download/v0.11.5/seq-linux-x86_64.tar.gz \
+            | tar zxvf - -C "${HOME}/.codon/lib/codon/plugins"
+          # Add Codon to PATH for subsequent steps
+          echo "${HOME}/.codon/bin" >> "$GITHUB_PATH"
+
+      - name: 🔗 Configure Codon Python bridge (optional but safe)
+        run: |
+          # Point Codon at the system's libpython so python bridge works if needed
+          LIBPY=$(python -c "import find_libpython; print(find_libpython.find_libpython())")
+          echo "CODON_PYTHON=${LIBPY}" >> "$GITHUB_ENV"
+          echo "Using libpython: ${LIBPY}"
+
+      - name: ▶️ Make week3/evaluate.sh executable (if not already)
+        run: chmod +x week3/evaluate.sh
+
+      - name: 🧪 Run Week 3 tests (Python + Codon)
+        working-directory: week3
+        shell: bash
+        run: |
+          set -e
+          ./evaluate.sh | tee /tmp/eval.out
+          echo "## Week 3 Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat /tmp/eval.out >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
