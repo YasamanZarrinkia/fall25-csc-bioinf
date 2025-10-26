@@ -10,20 +10,20 @@ jobs:
   run-week4:
     runs-on: ubuntu-22.04
     steps:
-      - name: Check out repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.10
+      - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install OpenMP (needed by Codon)
+      - name: Install OpenMP (Codon needs it)
         run: |
           sudo apt-get update
           sudo apt-get install -y libomp-dev
 
-      - name: Install Codon (Linux x86_64)
+      - name: Install Codon (Linux x86_64) & add to PATH
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.codon"
@@ -38,15 +38,21 @@ jobs:
           pip install find_libpython
           echo "CODON_PYTHON=$(python -c 'import find_libpython,sys; sys.stdout.write(find_libpython.find_libpython())')" >> "$GITHUB_ENV"
 
-      - name: Build Codon binary (required by evaluate.sh)
+      - name: Verify tools
         run: |
-          set -euo pipefail
-          mkdir -p week4/bin
-          codon --version
-          codon build -release -o week4/bin/align_codon week4/codon_impl/align_codon.py
+          which codon && codon --version
+          python --version
+          echo "CODON_PYTHON=$CODON_PYTHON"
 
-      - name: Make evaluate.sh executable
+      - name: Show evaluate.sh (first 200 lines)
+        run: sed -n '1,200p' week4/evaluate.sh
+
+      - name: Make evaluate executable
         run: chmod +x week4/evaluate.sh
 
+      - name: List week4 contents
+        run: ls -la week4
+
       - name: Run Week4 evaluate (stdout only)
-        run: bash -xe week4/evaluate.sh
+        working-directory: week4
+        run: bash -xe ./evaluate.sh
