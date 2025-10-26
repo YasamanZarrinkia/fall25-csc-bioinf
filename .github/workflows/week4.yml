@@ -1,29 +1,29 @@
-name: Week4
+name: Week 4 CI
 on:
   push:
-    paths:
-      - 'week4/**'
-      - '.github/workflows/week4.yml'
+    paths: ['week4/**', '.github/workflows/week4.yml']
+  pull_request:
+    paths: ['week4/**', '.github/workflows/week4.yml']
   workflow_dispatch:
 
 jobs:
-  run-week4:
+  week4:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
+      - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.10
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install OpenMP (Codon needs it)
+      - name: Install OpenMP (needed by Codon)
         run: |
           sudo apt-get update
           sudo apt-get install -y libomp-dev
 
-      - name: Install Codon (Linux x86_64) & add to PATH
+      - name: Install Codon (Linux x86_64)
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.codon"
@@ -44,15 +44,20 @@ jobs:
           python --version
           echo "CODON_PYTHON=$CODON_PYTHON"
 
-      - name: Show evaluate.sh (first 200 lines)
-        run: sed -n '1,200p' week4/evaluate.sh
-
       - name: Make evaluate executable
         run: chmod +x week4/evaluate.sh
 
-      - name: List week4 contents
-        run: ls -la week4
-
-      - name: Run Week4 evaluate (stdout only)
+      # RUN ONCE: print to stdout AND save a copy with tee (no outputs/ folder)
+      - name: Run Week 4 evaluate (stdout + save)
         working-directory: week4
-        run: bash -xe ./evaluate.sh
+        run: |
+          set -euo pipefail
+          ./evaluate.sh 2>&1 | tee ../week4_timing.txt
+
+      - name: Upload timing output (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: week4-timing
+          path: week4_timing.txt
+          if-no-files-found: error
