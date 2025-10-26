@@ -1,75 +1,66 @@
-name: Week5 CI
+name: Week5
 on:
   push:
     paths:
       - "week5/**"
       - ".github/workflows/week5.yml"
-  pull_request:
   workflow_dispatch:
 
 jobs:
   run-week5:
     runs-on: ubuntu-22.04
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Miniconda + bioconda/conda-forge
-      - name: Set up Conda (no mamba)
+      - name: Set up Mambaforge (conda) for bio tools
         uses: conda-incubator/setup-miniconda@v3
         with:
-          activate-environment: bio
-          python-version: "3.10"
-          auto-update-conda: false
+          miniforge-variant: Mambaforge
           channels: conda-forge,bioconda,defaults
           channel-priority: true
-          use-mamba: false
+          activate-environment: week5
+          auto-activate-base: false
+          python-version: "3.10"
 
-      - name: System packages for IGV/headless
+      - name: Install CLI tools (bioconda)
+        shell: bash -l {0}
+        run: |
+          mamba install -y minimap2 samtools bcftools freebayes hapcut2 seqtk wgsim tabix
+          # Optional: cyvcf2 for Python VCF parsing
+          mamba install -y python=3.10 pip cyvcf2
+
+      - name: Install Jupyter + nbconvert
+        shell: bash -l {0}
+        run: |
+          mamba install -y notebook nbconvert ipykernel
+          python -m ipykernel install --user --name week5 --display-name "Python (week5)"
+
+      - name: Download IGV (headless) + Java + Xvfb
+        shell: bash -l {0}
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb openjdk-11-jre curl wget unzip coreutils
-
-      - name: Install bio tools (conda)
-        shell: bash -l {0}
-        run: |
-          conda install -y \
-            -c conda-forge -c bioconda \
-            samtools bcftools minimap2 hapcut2 whatshap seqtk \
-            jupyter nbconvert ipykernel
-
-      - name: Download IGV jar
-        run: |
-          mkdir -p tools
-          wget -O tools/IGV_2.4.9.zip "https://data.broadinstitute.org/igv/projects/downloads/2.4/IGV_2.4.9.zip"
-          unzip -j tools/IGV_2.4.9.zip "IGV_2.4.9/igv.jar" -d tools
-          ls -lh tools || true
-
-      - name: Show versions
-        shell: bash -l {0}
-        run: |
-          which python && python --version
-          samtools --version | head -1 || true
-          bcftools --version | head -1 || true
-          minimap2 --version || true
-          hapcut2 --version || true
-          whatshap --version | head -1 || true
-          seqtk 2>&1 | head -1 || true
-          java -version || true
-          xvfb-run -help 2>&1 | head -1 || true
-          jupyter --version
+          sudo apt-get install -y openjdk-11-jre xvfb unzip curl
+          mkdir -p $GITHUB_WORKSPACE/tools
+          cd $GITHUB_WORKSPACE/tools
+          # IGV download (Broad Institute). If this version ever changes, update the URL.
+          curl -L -o igv.zip https://data.broadinstitute.org/igv/projects/downloads/2.15/IGV_Linux_2.15.4_WithJava.zip
+          unzip -q igv.zip
+          echo "$GITHUB_WORKSPACE/tools/IGV_Linux_2.15.4/igv.sh" > $GITHUB_WORKSPACE/tools/igv_path.txt
 
       - name: Execute notebook
         shell: bash -l {0}
+        env:
+          IGV_SH: ${{ github.workspace }}/tools/IGV_Linux_2.15.4/igv.sh
         run: |
-          jupyter nbconvert --to notebook --execute \
-            --ExecutePreprocessor.timeout=900 \
-            --output executed_week5.ipynb \
-            week5/week5.ipynb
+          jupyter nbconvert --to notebook --execute week5/week5.ipynb --ExecutePreprocessor.timeout=0 --output week5_executed.ipynb
 
-      - name: Upload executed notebook
+      - name: Upload artifacts (optional but helpful)
         uses: actions/upload-artifact@v4
         with:
-          name: executed-week5
-          path: executed_week5.ipynb
+          name: week5-results
+          path: |
+            week5_executed.ipynb
+            week5/out/**
+            week5/igv_snaps/**
+
