@@ -4,27 +4,24 @@ on:
     paths:
       - 'week4/**'
       - '.github/workflows/week4.yml'
-  pull_request:
-    paths:
-      - 'week4/**'
-      - '.github/workflows/week4.yml'
   workflow_dispatch:
 
 jobs:
   run-week4:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Make evaluate.sh executable
+      - name: Install deps for Codon (optional but likely needed)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libomp-dev
+          python -m pip install --upgrade pip
+          pip install codon
+      - name: Normalize line endings & make executable
+        run: |
+          sed -i 's/\r$//' week4/evaluate.sh || true
+          chmod +x week4/evaluate.sh
+      - name: Run evaluate.sh (print everything)
         working-directory: week4
         run: |
-          sed -i 's/\r$//' evaluate.sh || true
-          chmod +x evaluate.sh
-      - name: Run
-        working-directory: week4
-        run: ./evaluate.sh 2>&1 | tee outputs/week4_run.log
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: week4-artifacts
-          path: week4/outputs/**
+          bash -xe ./evaluate.sh
