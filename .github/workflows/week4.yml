@@ -11,16 +11,23 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install deps for Codon (optional but likely needed)
+
+      - name: Install OpenMP (needed by Codon)
         run: |
           sudo apt-get update
           sudo apt-get install -y libomp-dev
-          python -m pip install --upgrade pip
-          pip install codon
+
+      - name: Install Codon compiler (official script)
+        run: |
+          curl -fsSL https://exaloop.io/install.sh | bash -s -- -y
+          echo "$HOME/.codon/bin" >> $GITHUB_PATH
+          codon --version
+
       - name: Normalize line endings & make executable
         run: |
           sed -i 's/\r$//' week4/evaluate.sh || true
           chmod +x week4/evaluate.sh
+
       - name: Run evaluate.sh (print everything)
         working-directory: week4
         run: |
