@@ -15,7 +15,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Conda (mamba)
+      # Miniconda + bioconda/conda-forge
+      - name: Set up Conda (no mamba)
         uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: bio
@@ -23,17 +24,18 @@ jobs:
           auto-update-conda: false
           channels: conda-forge,bioconda,defaults
           channel-priority: true
-          use-mamba: true
+          use-mamba: false
 
       - name: System packages for IGV/headless
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb openjdk-11-jre curl wget unzip coreutils
 
-      - name: Install bio tools
+      - name: Install bio tools (conda)
         shell: bash -l {0}
         run: |
-          mamba install -y \
+          conda install -y \
+            -c conda-forge -c bioconda \
             samtools bcftools minimap2 hapcut2 whatshap seqtk \
             jupyter nbconvert ipykernel
 
@@ -42,7 +44,7 @@ jobs:
           mkdir -p tools
           wget -O tools/IGV_2.4.9.zip "https://data.broadinstitute.org/igv/projects/downloads/2.4/IGV_2.4.9.zip"
           unzip -j tools/IGV_2.4.9.zip "IGV_2.4.9/igv.jar" -d tools
-          ls -lh tools
+          ls -lh tools || true
 
       - name: Show versions
         shell: bash -l {0}
