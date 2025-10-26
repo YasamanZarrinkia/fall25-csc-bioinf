@@ -26,38 +26,26 @@ require_file() {
   fi
 }
 
-ensure_libomp_next_to_binary() {
-  # If already present, we're good.
-  if [[ -f "$BIN_DIR/libomp.dylib" ]]; then
-    return
-  fi
+# macOS-only helper (no-op on Linux)
+ensure_libomp_next_to_binary_macos() {
+  [[ "$(uname -s)" != "Darwin" ]] && return 0
+  [[ -f "$BIN_DIR/libomp.dylib" ]] && return 0
 
-  # Try Homebrew first (Apple Silicon: /opt/homebrew, Intel: /usr/local)
   if command -v brew >/dev/null 2>&1; then
     OMP="$(brew --prefix libomp 2>/dev/null || true)/lib/libomp.dylib"
     if [[ -f "$OMP" ]]; then
       ln -sf "$OMP" "$BIN_DIR/libomp.dylib"
-      return
+      return 0
     fi
   fi
-
-  # Common fallback locations
-  for P in \
-    /opt/homebrew/opt/libomp/lib/libomp.dylib \
-    /usr/local/opt/libomp/lib/libomp.dylib
-  do
-    if [[ -f "$P" ]]; then
-      ln -sf "$P" "$BIN_DIR/libomp.dylib"
-      return
-    fi
+  for P in /opt/homebrew/opt/libomp/lib/libomp.dylib /usr/local/opt/libomp/lib/libomp.dylib; do
+    [[ -f "$P" ]] && { ln -sf "$P" "$BIN_DIR/libomp.dylib"; return 0; }
   done
-
-  echo "Warning: libomp.dylib not found. If the binary fails to run, install libomp (e.g. 'brew install libomp')." 1>&2
+  echo "Warning: libomp.dylib not found on macOS. Try 'brew install libomp'." 1>&2
 }
 
 # --- sanity checks ---------------------------------------------------------
 
-# required data (you said these are already in repo)
 require_file "$DATA/MT-human.fa"
 require_file "$DATA/MT-orang.fa"
 require_file "$DATA/q1.fa"
@@ -65,7 +53,11 @@ require_file "$DATA/t1.fa"
 require_file "$DATA/q2.fa"
 require_file "$DATA/t2.fa"
 
-# --- build codon binary if missing (hard-require compiled binary) ----------
+# --- build codon binary if missing (build per-OS to avoid Exec format errors)
+
+if [[ "$(uname -s)" == "Linux" && -x "$CODON_BIN" ]]; then
+  rm -f "$CODON_BIN"
+fi
 
 if [[ ! -x "$CODON_BIN" ]]; then
   if ! command -v codon >/dev/null 2>&1; then
@@ -74,35 +66,37 @@ if [[ ! -x "$CODON_BIN" ]]; then
     exit 1
   fi
   mkdir -p "$BIN_DIR"
-  # Try to build once
   codon build -release -o "$CODON_BIN" codon_impl/align_codon.py
 fi
 
-# Ensure libomp.dylib sits next to the binary for macOS loaders
-ensure_libomp_next_to_binary
-# (extra safety) make sure the loader also sees bin/ first
-export DYLD_LIBRARY_PATH="$PWD/$BIN_DIR:${DYLD_LIBRARY_PATH:-}"
+# macOS needs libomp alongside the binary; Linux typically finds libomp.so via system paths
+ensure_libomp_next_to_binary_macos
+
+# Export platform-specific loader path only when needed
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  export DYLD_LIBRARY_PATH="$PWD/$BIN_DIR:${DYLD_LIBRARY_PATH:-}"
+else
+  # Usually not necessary on Ubuntu runners, but harmless
+  export LD_LIBRARY_PATH="$PWD/$BIN_DIR:${LD_LIBRARY_PATH:-}"
+fi
 
 # --- run table -------------------------------------------------------------
 
 echo "Method            Language    Runtime"
 echo "--------------------------------------"
 
-# 1) global-mt_human (python)
 ms=$(time_ms python -m py_impl.align_cli \
   --method global \
   --query "$DATA/MT-human.fa" \
   --target "$DATA/MT-orang.fa")
 print_row "global-mt_human" "python" "$ms"
 
-# 2) global-q1 (python)
 ms=$(time_ms python -m py_impl.align_cli \
   --method global \
   --query "$DATA/q1.fa" \
   --target "$DATA/t1.fa")
 print_row "global-q1" "python" "$ms"
 
-# 3) local-q2 (Codon ONLY; compiled binary)
 ms=$(time_ms "$CODON_BIN" \
   --method local \
   --query "$DATA/q2.fa" \
