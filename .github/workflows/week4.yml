@@ -10,35 +10,46 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
       - name: Install Codon (Linux x86_64)
         run: |
+          set -euo pipefail
           mkdir -p "${HOME}/.codon"
           curl -fsSL https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz \
             | tar zxvf - --strip-components=1 -C "${HOME}/.codon"
-          echo "${HOME}/.codon/bin" >> $GITHUB_PATH
+          echo "${HOME}/.codon/bin" >> "$GITHUB_PATH"
 
       - name: Set Codon Python bridge
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
-          pip install find_libpython
-          echo "CODON_PYTHON=$(python - <<'PY'
-import find_libpython; print(find_libpython.find_libpython())
-PY
-)" >> $GITHUB_ENV
+          python -m pip install find_libpython
+          echo "CODON_PYTHON=$(python -c 'import find_libpython,sys; sys.stdout.write(find_libpython.find_libpython())')" >> "$GITHUB_ENV"
 
-      # Build the Codon binary (hard-require compiled binary)
-      - name: Build Codon binary
+      - name: Build Codon binary (required by evaluate.sh)
         run: |
+          set -euo pipefail
           mkdir -p week4/bin
           codon build -release -o week4/bin/align_codon week4/codon_impl/align_codon.py
+
+      - name: Show evaluate.sh contents (debug)
+        run: sed -n '1,200p' week4/evaluate.sh
 
       - name: Make evaluate executable
         run: chmod +x week4/evaluate.sh
 
-      - name: Run Week 4 evaluate
-        run: bash week4/evaluate.sh
+      - name: Run Week 4 evaluate (verbose)
+        run: |
+          set -euo pipefail
+          bash -x week4/evaluate.sh | tee week4_timing.txt
+
+      - name: Upload timing output (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: week4-timing
+          path: week4_timing.txt
