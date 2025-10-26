@@ -17,11 +17,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libomp-dev
 
-      - name: Install Codon compiler (official script)
+      - name: Install Codon compiler (official script) and add to PATH
         run: |
           curl -fsSL https://exaloop.io/install.sh | bash -s -- -y
           echo "$HOME/.codon/bin" >> $GITHUB_PATH
-          codon --version
+
+      - name: Verify Codon is on PATH
+        run: codon --version
 
       - name: Normalize line endings & make executable
         run: |
@@ -30,5 +32,4 @@ jobs:
 
       - name: Run evaluate.sh (print everything)
         working-directory: week4
-        run: |
-          bash -xe ./evaluate.sh
+        run: bash -xe ./evaluate.sh
