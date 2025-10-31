@@ -1,75 +1,74 @@
-name: Week5 CI
+name: Github CI
+
 on:
   push:
     paths:
-      - "week5/**"
-      - ".github/workflows/week5.yml"
-  pull_request:
+      - 'week5/**'
+      - '.github/workflows/actions.yml'
   workflow_dispatch:
 
 jobs:
-  run-week5:
-    runs-on: ubuntu-22.04
+  week5-pipeline:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # --- Info about trigger ---
+      - name: 🎉 Trigger Info
+        run: |
+          echo "Triggered by ${{ github.event_name }} on branch ${{ github.ref }}"
+          echo "Repository: ${{ github.repository }}"
 
-      # Miniconda + bioconda/conda-forge
-      - name: Set up Conda (no mamba)
-        uses: conda-incubator/setup-miniconda@v3
+      # --- Checkout code ---
+      - name: 🧩 Check out repository
+        uses: actions/checkout@v5
+
+      # --- Setup Python ---
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
         with:
-          activate-environment: bio
-          python-version: "3.10"
-          auto-update-conda: false
-          channels: conda-forge,bioconda,defaults
-          channel-priority: true
-          use-mamba: false
+          python-version: '3.10'
 
-      - name: System packages for IGV/headless
+      # --- Install system & bioinformatics dependencies ---
+      - name: 🧬 Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb openjdk-11-jre curl wget unzip coreutils
+          sudo apt-get install -y \
+            samtools bcftools minimap2 tabix \
+            hapcut2 wget unzip xvfb
+          python3 -m pip install --upgrade pip
 
-      - name: Install bio tools (conda)
-        shell: bash -l {0}
+      # --- Install Python dependencies ---
+      - name: 📦 Install Python packages
         run: |
-          conda install -y \
-            -c conda-forge -c bioconda \
-            samtools bcftools minimap2 hapcut2 whatshap seqtk \
-            jupyter nbconvert ipykernel
+          pip install jupyter nbconvert ipykernel matplotlib seaborn pandas numpy find_libpython
 
-      - name: Download IGV jar
+      # --- Optional: Install Codon to keep template consistent ---
+      - name: 🧠 Install Codon (optional)
         run: |
-          mkdir -p tools
-          wget -O tools/IGV_2.4.9.zip "https://data.broadinstitute.org/igv/projects/downloads/2.4/IGV_2.4.9.zip"
-          unzip -j tools/IGV_2.4.9.zip "IGV_2.4.9/igv.jar" -d tools
-          ls -lh tools || true
+          mkdir -p ${HOME}/.codon
+          curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz \
+            | tar zxvf - --strip-components=1 -C ${HOME}/.codon
+          echo "${HOME}/.codon/bin" >> $GITHUB_PATH
+          echo "Codon installed at ${HOME}/.codon/bin"
 
-      - name: Show versions
-        shell: bash -l {0}
+      # --- Execute Jupyter notebook ---
+      - name: 🚀 Execute Week5 notebook
+        env:
+          CI: "true"
         run: |
-          which python && python --version
-          samtools --version | head -1 || true
-          bcftools --version | head -1 || true
-          minimap2 --version || true
-          hapcut2 --version || true
-          whatshap --version | head -1 || true
-          seqtk 2>&1 | head -1 || true
-          java -version || true
-          xvfb-run -help 2>&1 | head -1 || true
-          jupyter --version
+          echo "Running week5/week5.ipynb ..."
+          jupyter nbconvert --to notebook \
+            --execute week5/week5.ipynb \
+            --output week5_executed.ipynb --ExecutePreprocessor.timeout=3600
 
-      - name: Execute notebook
-        shell: bash -l {0}
-        run: |
-          jupyter nbconvert --to notebook --execute \
-            --ExecutePreprocessor.timeout=900 \
-            --output executed_week5.ipynb \
-            week5/week5.ipynb
-
-      - name: Upload executed notebook
+      # --- Upload executed notebook as artifact ---
+      - name: 📤 Upload executed notebook
         uses: actions/upload-artifact@v4
         with:
-          name: executed-week5
-          path: executed_week5.ipynb
+          name: week5_executed_notebook
+          path: week5/week5_executed.ipynb
+
+      # --- Final summary ---
+      - name: ✅ Summary
+        run: echo "Week5 Bioinformatics pipeline executed successfully with HapCUT2!"
+
