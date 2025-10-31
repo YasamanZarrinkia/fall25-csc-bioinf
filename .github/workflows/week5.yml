@@ -1,4 +1,4 @@
-name: Github CI
+name: Week 5 – CYP Gene Pipeline CI
 
 on:
   push:
@@ -8,74 +8,60 @@ on:
   workflow_dispatch:
 
 jobs:
-  week5-pipeline:
-    runs-on: ubuntu-latest
+  week5:
+    runs-on: ubuntu-22.04
 
     steps:
-      # --- Info about trigger ---
-      - name: 🎉 Trigger Info
-        run: |
-          echo "Triggered by ${{ github.event_name }} on branch ${{ github.ref }}"
-          echo "Repository: ${{ github.repository }}"
+      # 🧩 Step 1 – Check out repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # --- Checkout code ---
-      - name: 🧩 Check out repository
-        uses: actions/checkout@v5
-
-      # --- Setup Python ---
-      - name: 🐍 Setup Python
+      # 🐍 Step 2 – Set up Python environment
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # --- Install system & bioinformatics dependencies ---
-      - name: 🧬 Install system dependencies
+      # 🧬 Step 3 – Install system dependencies for bioinformatics tools
+      - name: Install system dependencies and bioinformatics tools
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            samtools bcftools minimap2 tabix \
-            wget unzip xvfb build-essential git zlib1g-dev
+            samtools bcftools minimap2 tabix wget unzip xvfb \
+            build-essential git zlib1g-dev openjdk-11-jre-headless
           python3 -m pip install --upgrade pip
 
-          # ---- build HapCUT2 from source ----
+      # 🧪 Step 4 – Build and install HapCUT2 from source
+      - name: Build and install HapCUT2
+        run: |
           git clone https://github.com/vibansal/hapcut2.git /tmp/hapcut2
           cd /tmp/hapcut2
           make
           sudo cp build/HAPCUT2 /usr/local/bin/hapcut2
           hapcut2 --version || echo "✅ HapCUT2 installed successfully"
 
-      # --- Install Python dependencies ---
-      - name: 📦 Install Python packages
+      # 🧰 Step 5 – Install Python packages for pipeline and IGV automation
+      - name: Install Python dependencies
         run: |
-          pip install jupyter nbconvert ipykernel matplotlib seaborn pandas numpy find_libpython
+          pip install \
+            biopython pandas matplotlib seaborn \
+            tqdm pysam ipywidgets openpyxl \
+            find_libpython
 
-      # --- Optional: Install Codon (template consistency) ---
-      - name: 🧠 Install Codon (optional)
+      # ⚙️ Step 6 – Run the Week 5 pipeline notebook end-to-end
+      - name: Run Week 5 pipeline (notebook)
         run: |
-          mkdir -p ${HOME}/.codon
-          curl -L https://github.com/exaloop/codon/releases/download/v0.19.3/codon-linux-x86_64.tar.gz \
-            | tar zxvf - --strip-components=1 -C ${HOME}/.codon
-          echo "${HOME}/.codon/bin" >> $GITHUB_PATH
-          echo "Codon installed at ${HOME}/.codon/bin"
+          echo "🚀 Running Week 5 bioinformatics pipeline"
+          jupyter nbconvert --to notebook --execute week5/week5_pipeline.ipynb \
+            --output week5/out/week5_executed.ipynb
 
-      # --- Execute Jupyter notebook ---
-      - name: 🚀 Execute Week5 notebook
-        env:
-          CI: "true"
-        run: |
-          echo "Running week5/week5.ipynb ..."
-          jupyter nbconvert --to notebook \
-            --execute week5/week5.ipynb \
-            --output week5_executed.ipynb --ExecutePreprocessor.timeout=3600
-
-      # --- Upload executed notebook as artifact ---
-      - name: 📤 Upload executed notebook
+      # 📸 Step 7 – Upload results and reports as artifacts
+      - name: Upload Week 5 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: week5_executed_notebook
-          path: week5/week5_executed.ipynb
-
-      # --- Final summary ---
-      - name: ✅ Summary
-        run: echo "Week5 Bioinformatics pipeline executed successfully with HapCUT2!"
+          name: week5-results
+          path: |
+            week5/out/
+            week5/igv_snaps/
+            week5/week5_pipeline.ipynb
 
