@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - 'week5/**'
-      - '.github/workflows/actions.yml'
+      - '.github/workflows/week5.yml'
   workflow_dispatch:
 
 jobs:
@@ -30,26 +30,26 @@ jobs:
 
       # --- Install system & bioinformatics dependencies ---
       - name: 🧬 Install system dependencies
-          run: |
-	    sudo apt-get update
-	    sudo apt-get install -y \
-	      samtools bcftools minimap2 tabix \
-	      wget unzip xvfb build-essential git zlib1g-dev
-	    python3 -m pip install --upgrade pip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            samtools bcftools minimap2 tabix \
+            wget unzip xvfb build-essential git zlib1g-dev
+          python3 -m pip install --upgrade pip
 
-            # ---- build HapCUT2 from source ----
-            git clone https://github.com/vibansal/hapcut2.git /tmp/hapcut2
-            cd /tmp/hapcut2
-            make
-            sudo cp build/HAPCUT2 /usr/local/bin/hapcut2
-            hapcut2 --version || echo "✅ HapCUT2 installed successfully"
+          # ---- build HapCUT2 from source ----
+          git clone https://github.com/vibansal/hapcut2.git /tmp/hapcut2
+          cd /tmp/hapcut2
+          make
+          sudo cp build/HAPCUT2 /usr/local/bin/hapcut2
+          hapcut2 --version || echo "✅ HapCUT2 installed successfully"
 
       # --- Install Python dependencies ---
       - name: 📦 Install Python packages
         run: |
           pip install jupyter nbconvert ipykernel matplotlib seaborn pandas numpy find_libpython
 
-      # --- Optional: Install Codon to keep template consistent ---
+      # --- Optional: Install Codon (template consistency) ---
       - name: 🧠 Install Codon (optional)
         run: |
           mkdir -p ${HOME}/.codon
