@@ -1,4 +1,4 @@
-name: Week 5 – CYP Gene Pipeline CI
+name: Week5 Bioinformatics Pipeline CI
 
 on:
   push:
@@ -12,56 +12,53 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # 🧩 Step 1 – Check out repository
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      # 🐍 Step 2 – Set up Python environment
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      # 🧬 Step 3 – Install system dependencies for bioinformatics tools
-      - name: Install system dependencies and bioinformatics tools
+      - name: 🧰 Install system dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get update -qq
           sudo apt-get install -y \
-            samtools bcftools minimap2 tabix wget unzip xvfb \
-            build-essential git zlib1g-dev openjdk-11-jre-headless
-          python3 -m pip install --upgrade pip
+            build-essential git wget unzip xvfb \
+            samtools bcftools minimap2 tabix \
+            libhts-dev zlib1g-dev libcurl4-gnutls-dev \
+            libbz2-dev liblzma-dev
 
-      # 🧪 Step 4 – Build and install HapCUT2 from source
-      - name: Build and install HapCUT2
+      - name: 🧬 Build HapCUT2 from source
         run: |
           git clone https://github.com/vibansal/hapcut2.git /tmp/hapcut2
           cd /tmp/hapcut2
           make
           sudo cp build/HAPCUT2 /usr/local/bin/hapcut2
-          hapcut2 --version || echo "✅ HapCUT2 installed successfully"
+          sudo cp build/extractHAIRS /usr/local/bin/extractHAIRS
+          hapcut2 --version || echo "✅ HapCUT2 installed"
 
-      # 🧰 Step 5 – Install Python packages for pipeline and IGV automation
-      - name: Install Python dependencies
+      - name: 🧪 Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Python dependencies
         run: |
-          pip install \
-            biopython pandas matplotlib seaborn \
-            tqdm pysam ipywidgets openpyxl \
-            find_libpython
+          python -m pip install --upgrade pip
+          pip install matplotlib numpy pandas pysam biopython
 
-      # ⚙️ Step 6 – Run the Week 5 pipeline notebook end-to-end
-      - name: Run Week 5 pipeline (notebook)
+      - name: 🚀 Run Week5 pipeline notebook
         run: |
-          echo "🚀 Running Week 5 bioinformatics pipeline"
-          jupyter nbconvert --to notebook --execute week5/week5_pipeline.ipynb \
-            --output week5/out/week5_executed.ipynb
+          pip install nbconvert jupyter
+          jupyter nbconvert --to notebook --execute week5/week5-pipeline.ipynb \
+            --output week5/week5-output.ipynb \
+            --ExecutePreprocessor.timeout=3600
 
-      # 📸 Step 7 – Upload results and reports as artifacts
-      - name: Upload Week 5 artifacts
+      - name: 📤 Upload artifacts (results + logs)
         uses: actions/upload-artifact@v4
         with:
           name: week5-results
           path: |
-            week5/out/
-            week5/igv_snaps/
-            week5/week5_pipeline.ipynb
+            week5/**/*.vcf.gz
+            week5/**/*.bam
+            week5/**/*.txt
+            week5/**/*.json
+            week5/**/*.png
+            week5/week5-output.ipynb
 
