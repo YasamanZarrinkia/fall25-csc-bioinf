@@ -30,12 +30,19 @@ jobs:
 
       # --- Install system & bioinformatics dependencies ---
       - name: 🧬 Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            samtools bcftools minimap2 tabix \
-            hapcut2 wget unzip xvfb
-          python3 -m pip install --upgrade pip
+          run: |
+	    sudo apt-get update
+	    sudo apt-get install -y \
+	      samtools bcftools minimap2 tabix \
+	      wget unzip xvfb build-essential git zlib1g-dev
+	    python3 -m pip install --upgrade pip
+
+            # ---- build HapCUT2 from source ----
+            git clone https://github.com/vibansal/hapcut2.git /tmp/hapcut2
+            cd /tmp/hapcut2
+            make
+            sudo cp build/HAPCUT2 /usr/local/bin/hapcut2
+            hapcut2 --version || echo "✅ HapCUT2 installed successfully"
 
       # --- Install Python dependencies ---
       - name: 📦 Install Python packages
