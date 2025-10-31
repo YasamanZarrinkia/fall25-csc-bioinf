@@ -25,34 +25,40 @@ jobs:
 
       # --- SYSTEM DEPS ---
       - name: 🧰 Install system dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y \
+          sudo apt-get install -qq -y --no-install-recommends \
+            build-essential git wget unzip xvfb tree \
             samtools bcftools minimap2 tabix \
-            wget unzip xvfb build-essential git \
-            zlib1g-dev libhts-dev libbz2-dev tree
+            zlib1g-dev libhts-dev libbz2-dev libcurl4-openssl-dev liblzma-dev
 
       # --- HAPCUT2 INSTALLATION ---
       - name: 🧬 Build and install HapCUT2 from source
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          git clone https://github.com/vibansal/hapcut2.git /tmp/hapcut2
+          echo "Cloning HapCUT2..."
+          git clone --depth 1 https://github.com/vibansal/hapcut2.git /tmp/hapcut2
           cd /tmp/hapcut2
-          make
-          sudo cp build/HAPCUT2 /usr/local/bin/hapcut2 || true
-          sudo cp build/extractHAIRS /usr/local/bin/extractHAIRS || true
+          make -j$(nproc) || (echo "⚠️ HapCUT2 build failed" && exit 1)
+          sudo cp build/HAPCUT2 /usr/local/bin/hapcut2
+          sudo cp build/extractHAIRS /usr/local/bin/extractHAIRS
           sudo chmod +x /usr/local/bin/hapcut2 /usr/local/bin/extractHAIRS
           hapcut2 --version || echo "✅ HapCUT2 installed successfully"
 
       # --- PYTHON DEPS ---
       - name: 📦 Install Python dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install jupyter nbconvert matplotlib pandas numpy
 
       # --- RUN NOTEBOOK ---
       - name: 🚀 Execute Week5 notebook
         run: |
           mkdir -p week5
+          echo "▶️ Running week5-pipeline.ipynb ..."
           jupyter nbconvert --to notebook --execute week5/week5-pipeline.ipynb \
             --output week5-output.ipynb \
             --output-dir week5 \
