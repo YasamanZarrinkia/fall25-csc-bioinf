@@ -29,7 +29,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y \
             samtools bcftools minimap2 tabix \
-            wget unzip xvfb build-essential git zlib1g-dev libhts-dev tree
+            wget unzip xvfb build-essential git \
+            zlib1g-dev libhts-dev libbz2-dev tree
 
       # --- HAPCUT2 INSTALLATION ---
       - name: 🧬 Build and install HapCUT2 from source
@@ -55,11 +56,13 @@ jobs:
             --output week5/week5-output.ipynb \
             --ExecutePreprocessor.timeout=3600
         env:
-          DISPLAY: ":99"  # for IGV headless compatibility
+          DISPLAY: ":99"
 
-      # --- DEBUG: LIST FILES ---
-      - name: 🧾 List week5 folder contents
-        run: ls -R week5
+      # --- DEBUG FILE LISTING ---
+      - name: 🧾 List generated files
+        run: |
+          echo "== WEEK5 DIRECTORY STRUCTURE =="
+          ls -R week5 || true
 
       # --- UPLOAD EXECUTED NOTEBOOK ---
       - name: 📤 Upload executed notebook
@@ -68,9 +71,9 @@ jobs:
           name: week5-pipeline-output
           path: week5/week5-output.ipynb
 
-      # --- UPLOAD RESULTS (VCF, JSON, PNGs) ---
+      # --- UPLOAD RESULTS (JSON, VCF, BAM, PNG) ---
       - name: 📦 Upload analysis results
-        continue-on-error: true  # skip invalid filenames safely
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: week5-results
