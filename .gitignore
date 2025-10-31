@@ -40,3 +40,11 @@ week1/data/*/contig_codon.fasta
 
 # Week 2 test artifacts
 week2/test/.pytest_cache/
+week5/data/
+week5/out/
+week5/tmp/
+.DS_Store
+week5/data/
+week5/out/
+week5/tmp/
+.DS_Store
