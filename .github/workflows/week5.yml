@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Check out repository
+      - name: 📥 Check out repository
         uses: actions/checkout@v4
 
       - name: 🧰 Install system dependencies
@@ -41,16 +41,21 @@ jobs:
       - name: 📦 Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install matplotlib numpy pandas pysam biopython
+          pip install matplotlib numpy pandas pysam biopython nbconvert jupyter
 
       - name: 🚀 Run Week5 pipeline notebook
         run: |
-          pip install nbconvert jupyter
           jupyter nbconvert --to notebook --execute week5/week5-pipeline.ipynb \
-            --output week5/week5-output.ipynb \
+            --output week5-output.ipynb \
             --ExecutePreprocessor.timeout=3600
 
-      - name: 📤 Upload artifacts (results + logs)
+      - name: 📤 Upload executed notebook
+        uses: actions/upload-artifact@v4
+        with:
+          name: week5-pipeline-output
+          path: week5-output.ipynb
+
+      - name: 📦 Upload analysis results
         uses: actions/upload-artifact@v4
         with:
           name: week5-results
@@ -60,5 +65,4 @@ jobs:
             week5/**/*.txt
             week5/**/*.json
             week5/**/*.png
-            week5/week5-output.ipynb
 
