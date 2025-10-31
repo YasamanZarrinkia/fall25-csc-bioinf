@@ -52,8 +52,10 @@ jobs:
       # --- RUN NOTEBOOK ---
       - name: 🚀 Execute Week5 notebook
         run: |
+          mkdir -p week5
           jupyter nbconvert --to notebook --execute week5/week5-pipeline.ipynb \
-            --output week5/week5-output.ipynb \
+            --output week5-output.ipynb \
+            --output-dir week5 \
             --ExecutePreprocessor.timeout=3600
         env:
           DISPLAY: ":99"
