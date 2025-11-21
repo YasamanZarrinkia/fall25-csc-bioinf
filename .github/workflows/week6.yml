@@ -1,4 +1,4 @@
-name: "Week6 Bioinformatics Pipeline CI"
+name: Week6 Bioinformatics Pipeline CI
 
 on:
   push:
@@ -12,38 +12,45 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: "Checkout repo"
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: "Install micromamba + create env"
-        uses: mamba-org/setup-micromamba@v1
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
         with:
-          micromamba-version: "1.5.0"
-          environment-name: week6
-          create-args: >-
-            python=3.10
-            salmon
-            alevin-fry
-            pyroe
-            scanpy
-            celltypist
-            nbconvert
-            jupyter
-            pandas
+          auto-update-conda: true
+          python-version: "3.10"
+          channels: conda-forge,bioconda,defaults
+          auto-activate-base: true
+
+      - name: Install bioinformatics dependencies
+        shell: bash -l {0}
+        run: |
+          conda install -y -c conda-forge -c bioconda \
+            salmon \
+            alevin-fry \
+            pyroe \
+            scanpy \
+            celltypist \
+            nbconvert \
+            jupyter \
+            pandas \
             numpy
-          channels: conda-forge,bioconda
-          init-shell: bash
 
-      - name: "Debug: list data files"
-        shell: bash
+      - name: Debug data files
+        shell: bash -l {0}
         run: |
-          echo "=== Data check ==="
-          find week6/data -type f | head -20
+          echo "=== Data files in week6/data ==="
+          find week6/data -type f | head -20 || true
 
-      - name: "Execute week6 notebook"
-        shell: bash
+      - name: Run week6 notebook
+        shell: bash -l {0}
         run: |
-          micromamba activate week6
+          echo "Python version:"
+          python --version
+          echo "Salmon version:"
+          salmon --version || true
+
           echo "=== Running notebook ==="
           jupyter nbconvert --to notebook --execute week6/week6.ipynb \
             --output week6_executed.ipynb
