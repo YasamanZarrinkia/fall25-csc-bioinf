@@ -19,7 +19,7 @@ jobs:
       - name: 🧬 Set up micromamba environment
         uses: mamba-org/setup-micromamba@v2
         with:
-          micromamba-version: "1.5.8"
+          micromamba-version: "latest"
           environment-name: week6-env
           create-args: >-
             python=3.11
