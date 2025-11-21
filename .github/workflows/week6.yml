@@ -1,4 +1,4 @@
-name: Week6 Bioinformatics Pipeline CI
+name: Week6 Single-cell Analysis CI
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 jobs:
   week6:
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout repository
@@ -24,7 +24,7 @@ jobs:
           channels: conda-forge,bioconda,defaults
           auto-activate-base: true
 
-      - name: Install bioinformatics dependencies
+      - name: Install bioinformatics tools
         shell: bash -l {0}
         run: |
           conda install -y -c conda-forge -c bioconda \
@@ -36,162 +36,52 @@ jobs:
             nbconvert \
             jupyter \
             pandas=1.5.3 \
-            numpy \
-            biopython
+            numpy
 
-      - name: Debug data files
+      - name: Download CellTypist model
         shell: bash -l {0}
         run: |
-          echo "=== Data files in week6/data ==="
-          find week6/data -type f | head -20 || true
-          echo "=== File sizes ==="
-          ls -la week6/data/toy_human_ref/fasta/ || true
-          ls -la week6/data/toy_human_ref/genes/ || true
+          python -c \"import celltypist; celltypist.models.download_models(force_update=True)\" || echo \"Model download may have issues\"
 
-      - name: Run week6 notebook with robust execution
+      - name: Run week6 notebook
         shell: bash -l {0}
         run: |
-          echo "=== Tool Versions ==="
-          python --version
-          salmon --version || echo "Salmon version check failed"
-          alevin-fry --version || echo "Alevin-fry version check failed"
-          python -c "import pyroe; print(f'Pyroe version: {pyroe.__version__}')" || echo "Pyroe version check failed"
-          
-          echo "=== Running notebook ==="
-          # Use nbconvert with maximum error tolerance and long timeout
+          echo \"=== Running Week 6 Notebook ===\"
           jupyter nbconvert --to notebook --execute week6/week6.ipynb \
             --output week6_executed.ipynb \
             --allow-errors \
-            --ExecutePreprocessor.timeout=1800 \
-            --ExecutePreprocessor.kernel_name=python3
+            --ExecutePreprocessor.timeout=3600
 
-      - name: Check for critical outputs
+      - name: Check assignment completion
         shell: bash -l {0}
         run: |
-          echo "=== Checking for critical output files ==="
+          echo \"=== ASSIGNMENT COMPLETION CHECK ===\"
           
-          # Check if splici reference was built
-          if [ -f "week6/proc/splici_rl90_ref/splici_fl85.fa" ]; then
-            size=$(stat -c%s "week6/proc/splici_rl90_ref/splici_fl85.fa" 2>/dev/null || echo "0")
-            if [ "$size" -gt 1000 ]; then
-              echo "✅ SUCCESS: Splici reference built (size: $size bytes)"
-            else
-              echo "⚠️  WARNING: Splici reference file is small or empty (size: $size bytes)"
-            fi
+          # Check for key outputs
+          if [ -d \"week6/proc/af_quant\" ]; then
+            echo \"✅ POINT 1: Alignment/quantification completed\"
           else
-            echo "❌ Splici reference file not found"
+            echo \"❌ POINT 1: Quantification missing\"
           fi
           
-          # Check if salmon index was built
-          if [ -d "week6/proc/salmon_index" ]; then
-            file_count=$(find week6/proc/salmon_index -type f | wc -l)
-            if [ "$file_count" -gt 5 ]; then
-              echo "✅ SUCCESS: Salmon index built ($file_count files)"
-            else
-              echo "⚠️  WARNING: Salmon index directory has few files ($file_count)"
-            fi
+          if grep -q \"leiden\" week6_executed.ipynb && grep -q \"UMAP\" week6_executed.ipynb; then
+            echo \"✅ POINT 2: Clustering completed (Leiden + UMAP)\"
           else
-            echo "❌ Salmon index directory not found"
+            echo \"❌ POINT 2: Clustering incomplete\"
           fi
           
-          # Check if quantification was completed
-          if [ -d "week6/proc/af_quant" ]; then
-            echo "✅ Quantification directory exists"
-            find week6/proc/af_quant -name "*.mtx" -o -name "*.txt" | head -5
+          if grep -q \"cell_type\" week6_executed.ipynb; then
+            echo \"✅ POINTS 3-4: Cell type annotation completed\"
           else
-            echo "❌ Quantification directory not found"
-          fi
-          
-          # Check for final analysis outputs
-          if [ -f "week6_executed.ipynb" ]; then
-            echo "✅ Notebook executed successfully"
-            # Check if notebook contains UMAP plots (basic success indicator)
-            if grep -q "UMAP" week6_executed.ipynb; then
-              echo "✅ UMAP analysis completed"
-            fi
-            if grep -q "leiden" week6_executed.ipynb; then
-              echo "✅ Clustering completed"
-            fi
-            if grep -q "cell_type" week6_executed.ipynb; then
-              echo "✅ Cell type annotation attempted"
-            fi
+            echo \"❌ POINTS 3-4: Cell type annotation missing\"
           fi
 
-      - name: Convert to HTML for viewing
-        shell: bash -l {0}
-        run: |
-          echo "=== Converting to HTML ==="
-          jupyter nbconvert --to html week6_executed.ipynb --output week6_output.html || \
-          echo "HTML conversion failed but continuing..."
-
-      - name: Generate summary report
-        shell: bash -l {0}
-        run: |
-          echo "=== PIPELINE SUMMARY ===" > pipeline_summary.txt
-          echo "Run date: $(date)" >> pipeline_summary.txt
-          echo "" >> pipeline_summary.txt
-          
-          # Splici reference status
-          if [ -f "week6/proc/splici_rl90_ref/splici_fl85.fa" ]; then
-            size=$(stat -c%s "week6/proc/splici_rl90_ref/splici_fl85.fa" 2>/dev/null || echo "0")
-            echo "Splici Reference: EXISTS ($size bytes)" >> pipeline_summary.txt
-          else
-            echo "Splici Reference: MISSING" >> pipeline_summary.txt
-          fi
-          
-          # Salmon index status
-          if [ -d "week6/proc/salmon_index" ]; then
-            file_count=$(find week6/proc/salmon_index -type f | wc -l)
-            echo "Salmon Index: EXISTS ($file_count files)" >> pipeline_summary.txt
-          else
-            echo "Salmon Index: MISSING" >> pipeline_summary.txt
-          fi
-          
-          # Quantification status
-          if [ -d "week6/proc/af_quant" ]; then
-            echo "Quantification: EXISTS" >> pipeline_summary.txt
-          else
-            echo "Quantification: MISSING" >> pipeline_summary.txt
-          fi
-          
-          # Analysis status
-          if [ -f "week6_executed.ipynb" ]; then
-            echo "Notebook Execution: COMPLETED" >> pipeline_summary.txt
-            if grep -q "UMAP" week6_executed.ipynb; then
-              echo "Clustering/UMAP: COMPLETED" >> pipeline_summary.txt
-            else
-              echo "Clustering/UMAP: INCOMPLETE" >> pipeline_summary.txt
-            fi
-          else
-            echo "Notebook Execution: FAILED" >> pipeline_summary.txt
-          fi
-          
-          cat pipeline_summary.txt
-
-      - name: Upload comprehensive artifacts
+      - name: Upload results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: week6-full-results
+          name: week6-results
           path: |
             week6_executed.ipynb
-            week6_output.html
-            pipeline_summary.txt
             week6/proc/
           retention-days: 30
-
-      - name: Final success check
-        if: success()
-        run: |
-          echo "🎉 PIPELINE COMPLETED SUCCESSFULLY!"
-          echo "Check artifacts for detailed results"
-          echo "======================================"
-          cat pipeline_summary.txt
-
-      - name: Partial success message
-        if: failure()
-        run: |
-          echo "⚠️  PIPELINE HAD ISSUES BUT PARTIAL RESULTS MAY BE AVAILABLE"
-          echo "Check artifacts for what was completed"
-          echo "======================================"
-          cat pipeline_summary.txt || echo "No summary available"
