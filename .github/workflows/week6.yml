@@ -10,12 +10,16 @@ on:
 jobs:
   week6:
     runs-on: ubuntu-22.04
+    env:
+      NUMBA_THREADING_LAYER: workqueue
+      NUMBA_NUM_THREADS: 1
+      OMP_NUM_THREADS: 1
 
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🧰 Install system dependencies (no salmon from apt)
+      - name: 🧰 Install system dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
@@ -25,47 +29,57 @@ jobs:
             libz-dev libbz2-dev liblzma-dev \
             libtbb-dev libtbb12
 
-      - name: 🧬 Install Salmon binary (v1.10.0)
-        run: |
-          wget https://github.com/COMBINE-lab/salmon/releases/download/v1.10.0/salmon-1.10.0_linux_x86_64.tar.gz
-
-          # Detect top-level dir inside the tarball (e.g., salmon-latest_linux_x86_64)
-          SALMON_DIR=$(tar -tzf salmon-1.10.0_linux_x86_64.tar.gz | head -1 | cut -f1 -d"/")
-          echo "Detected Salmon directory: $SALMON_DIR"
-
-          tar -xzf salmon-1.10.0_linux_x86_64.tar.gz
-
-          sudo cp "$SALMON_DIR/bin/salmon" /usr/local/bin/salmon
-          sudo chmod +x /usr/local/bin/salmon
-
-          echo "Salmon version:"
-          salmon --version
-
       - name: 🐍 Set up Python environment
         run: |
           python3 -m venv week6-env
           source week6-env/bin/activate
-
           python3 -m pip install --upgrade pip setuptools wheel
 
-          # 🔒 Pin to a compatible stack so numpy/pandas don't fight
+          # Pin compatible versions
           pip install \
             "numpy==1.26.4" \
             "pandas==2.1.4" \
             "scanpy==1.10.2" \
             anndata scipy matplotlib seaborn jupyter
 
-          # Alevin-fry helper + automatic cell annotation
           pip install pyroe celltypist
-
-          # Try to install alevin-fry CLI via pip (optional, won't fail the build if unavailable)
           pip install "alevin-fry>=0.10.0" --extra-index-url https://test.pypi.org/simple/ || true
-
-          # For non-interactive notebook execution
           pip install nbconvert
+
+      - name: 🧬 Install Salmon binary (v1.10.0) with proper libraries
+        run: |
+          wget https://github.com/COMBINE-lab/salmon/releases/download/v1.10.0/salmon-1.10.0_linux_x86_64.tar.gz
+
+          # Detect extracted folder
+          SALMON_DIR=$(tar -tzf salmon-1.10.0_linux_x86_64.tar.gz | head -1 | cut -f1 -d"/")
+          echo "Detected Salmon directory: $SALMON_DIR"
+
+          tar -xzf salmon-1.10.0_linux_x86_64.tar.gz
+
+          # Copy libs safely
+          if [ -d "$SALMON_DIR/lib" ]; then
+            sudo cp -r "$SALMON_DIR/lib/"* /usr/local/lib/
+          fi
+
+          # Copy binary
+          sudo cp "$SALMON_DIR/bin/salmon" /usr/local/bin/salmon
+          sudo chmod +x /usr/local/bin/salmon
+
+          # Refresh loader cache
+          sudo ldconfig
+
+          echo "=== Salmon version ==="
+          salmon --version
+
+      - name: 🔍 Debug: Check data structure
+        run: |
+          echo "=== Checking data structure ==="
+          find week6/data -type f | head -20
+          echo "=== Done ==="
 
       - name: 🧪 Run week6 notebook non-interactively
         run: |
           source week6-env/bin/activate
-          jupyter nbconvert --to notebook --execute week6/week6.ipynb --output week6_executed.ipynb
+          echo "=== Running notebook ==="
+          timeout 20m jupyter nbconvert --to notebook --execute week6/week6.ipynb --output week6_executed.ipynb
 
