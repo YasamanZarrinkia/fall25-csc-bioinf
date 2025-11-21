@@ -20,30 +20,51 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y \
             wget tar gzip unzip \
-            build-essential
+            python3 python3-pip python3-venv \
+            build-essential \
+            libz-dev libbz2-dev liblzma-dev \
+            libtbb-dev libtbb12
 
-      - name: 🐍 Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-update-conda: true
-          python-version: "3.9"
-          channels: conda-forge,bioconda
-
-      - name: 🧬 Install bioinformatics packages
+      - name: 🐍 Set up Python environment
         run: |
-          conda install -y -c bioconda -c conda-forge \
-            salmon alevin-fry \
-            scanpy anndata pandas numpy scipy matplotlib seaborn jupyter \
-            pyroe celltypist \
-            nbconvert
+          python3 -m venv week6-env
+          source week6-env/bin/activate
 
-      - name: 📦 Download data (placeholder)
-        run: |
-          mkdir -p week6/data
-          echo "Data download would happen here"
+          python3 -m pip install --upgrade pip setuptools wheel
 
-      - name: 🧪 Run week6 notebook
+          # 🔒 Pin numpy + pandas + scanpy to a compatible set
+          pip install \
+            "numpy==1.26.4" \
+            "pandas==2.1.4" \
+            "scanpy==1.10.2" \
+            anndata scipy matplotlib seaborn jupyter
+
+          # Alevin-fry helper + automatic cell annotation
+          pip install pyroe celltypist
+
+          # Try to install alevin-fry CLI via pip (optional, won't fail if unavailable)
+          pip install "alevin-fry>=0.10.0" --extra-index-url https://test.pypi.org/simple/ || true
+
+          # For non-interactive notebook execution
+          pip install nbconvert
+
+      - name: 🧬 Install Salmon binary (v1.10.0)
         run: |
-          conda init bash
-          source ~/.bashrc
+          wget https://github.com/COMBINE-lab/salmon/releases/download/v1.10.0/salmon-1.10.0_linux_x86_64.tar.gz
+
+          # Detect the extracted directory name (usually salmon-latest_linux_x86_64)
+          SALMON_DIR=$(tar -tzf salmon-1.10.0_linux_x86_64.tar.gz | head -1 | cut -f1 -d"/")
+          echo "Detected Salmon directory: $SALMON_DIR"
+
+          # Now actually extract and install the salmon binary
+          tar -xzf salmon-1.10.0_linux_x86_64.tar.gz
+          sudo cp "$SALMON_DIR/bin/salmon" /usr/local/bin/salmon
+          sudo chmod +x /usr/local/bin/salmon
+
+          salmon --version
+
+      - name: 🧪 Run week6 notebook non-interactively
+        run: |
+          source week6-env/bin/activate
           jupyter nbconvert --to notebook --execute week6/week6.ipynb --output week6_executed.ipynb
+
