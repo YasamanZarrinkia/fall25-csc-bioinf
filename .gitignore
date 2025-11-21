@@ -48,3 +48,6 @@ week5/data/
 week5/out/
 week5/tmp/
 .DS_Store
+# Week 6 large data (keep local only, not in git)
+week6/data/
+
