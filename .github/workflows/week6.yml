@@ -1,4 +1,4 @@
-name: Week6 Bioinformatics Pipeline CI
+name: "Week6 Bioinformatics Pipeline CI"
 
 on:
   push:
@@ -12,10 +12,11 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: 📥 Checkout repository
+      - name: "Checkout repository"
         uses: actions/checkout@v4
 
-      - name: 🧰 Install micromamba
+      - name: "Install micromamba"
+        shell: bash
         run: |
           sudo apt-get update -y
           sudo apt-get install -y bzip2 curl
@@ -23,12 +24,13 @@ jobs:
           curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
             | tar -xvj bin/micromamba
 
-          echo 'export MAMBA_ROOT_PREFIX="$HOME/micromamba"' >> $GITHUB_ENV
+          echo "MAMBA_ROOT_PREFIX=$HOME/micromamba" >> $GITHUB_ENV
           echo "$HOME/micromamba/bin" >> $GITHUB_PATH
 
-      - name: 🧪 Create environment with Salmon + Alevin-fry + Pyroe + Scanpy + CellTypist
+      - name: "Create environment with Salmon, alevin-fry, pyroe, scanpy, celltypist"
+        shell: bash
         run: |
-          eval "$(./bin/micromamba shell hook -s bash)"
+          eval "$($GITHUB_WORKSPACE/bin/micromamba shell hook -s bash)"
 
           micromamba create -y -n week6 -c bioconda -c conda-forge \
             python=3.10 \
@@ -38,24 +40,23 @@ jobs:
             scanpy \
             celltypist \
             nbconvert \
-            pandoc \
-            jupyter
+            jupyter \
+            pandas \
+            numpy \
+            pip
 
-          micromamba activate week6
+          echo "micromamba activate week6" >> $GITHUB_ENV
 
-          echo "=== Versions ==="
-          salmon --version
-          alevin-fry --version
-          python --version
-
-      - name: 🔍 Debug: ensure data is available
+      - name: "Debug: list data files"
+        shell: bash
         run: |
           echo "=== Data check ==="
-          find week6/data -type f | head -20
+          find week6/data -type f | head -20 || true
 
-      - name: 🧪 Run notebook non-interactively
+      - name: "Run week6 notebook"
+        shell: bash
         run: |
-          eval "$(./bin/micromamba shell hook -s bash)"
+          eval "$($GITHUB_WORKSPACE/bin/micromamba shell hook -s bash)"
           micromamba activate week6
 
           echo "=== Running notebook ==="
