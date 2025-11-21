@@ -19,7 +19,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y bzip2 curl
+          sudo apt-get install -y curl bzip2
 
           curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
             | tar -xvj bin/micromamba
@@ -27,10 +27,10 @@ jobs:
           echo "MAMBA_ROOT_PREFIX=$HOME/micromamba" >> $GITHUB_ENV
           echo "$HOME/micromamba/bin" >> $GITHUB_PATH
 
-      - name: "Create environment with Salmon, alevin-fry, pyroe, scanpy, celltypist"
+      - name: "Create environment (salmon, alevin-fry, pyroe, scanpy, celltypist)"
         shell: bash
         run: |
-          eval "$($GITHUB_WORKSPACE/bin/micromamba shell hook -s bash)"
+          eval "$($HOME/micromamba/bin/micromamba shell hook -s bash)"
 
           micromamba create -y -n week6 -c bioconda -c conda-forge \
             python=3.10 \
@@ -42,21 +42,20 @@ jobs:
             nbconvert \
             jupyter \
             pandas \
-            numpy \
-            pip
+            numpy
 
-          echo "micromamba activate week6" >> $GITHUB_ENV
+          echo "Environment created."
 
       - name: "Debug: list data files"
         shell: bash
         run: |
           echo "=== Data check ==="
-          find week6/data -type f | head -20 || true
+          find week6/data -type f | head -20
 
       - name: "Run week6 notebook"
         shell: bash
         run: |
-          eval "$($GITHUB_WORKSPACE/bin/micromamba shell hook -s bash)"
+          eval "$($HOME/micromamba/bin/micromamba shell hook -s bash)"
           micromamba activate week6
 
           echo "=== Running notebook ==="
