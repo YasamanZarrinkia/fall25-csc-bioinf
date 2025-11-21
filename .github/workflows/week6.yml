@@ -1,166 +1,72 @@
-name: Week6 Single-cell Analysis CI
+name: Week 6 Single-Cell Pipeline CI
 
 on:
   push:
     paths:
-      - "week6/**"
-      - ".github/workflows/week6.yml"
+      - 'week6/**'
+      - '.github/workflows/week6.yml'
   workflow_dispatch:
 
 jobs:
   week6:
     runs-on: ubuntu-22.04
-    timeout-minutes: 120
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Check out repository
         uses: actions/checkout@v4
 
-      - name: Setup Miniconda
-        uses: conda-incubator/setup-miniconda@v2
+      # Set up a conda/mamba env with all needed tools (salmon, alevin-fry, scanpy, etc.)
+      - name: 🧬 Set up micromamba environment
+        uses: mamba-org/setup-micromamba@v2
         with:
-          auto-update-conda: true
-          python-version: "3.10"
-          channels: conda-forge,bioconda,defaults
-          auto-activate-base: true
-
-      - name: Install bioinformatics tools
-        shell: bash -l {0}
-        run: |
-          conda install -y -c conda-forge -c bioconda \
-            salmon=1.10.0 \
-            alevin-fry=0.9.0 \
-            pyroe=0.7.0 \
-            scanpy \
-            celltypist \
-            nbconvert \
-            jupyter \
-            pandas=1.5.3 \
+          micromamba-version: "1.5.8"
+          environment-name: week6-env
+          create-args: >-
+            python=3.11
+            scanpy
+            anndata
+            celltypist
+            pyroe
+            jupyter
+            matplotlib
+            pandas
             numpy
+            scipy
+            salmon
+            alevin-fry
+            samtools
+          condarc: |
+            channels:
+              - conda-forge
+              - bioconda
+              - defaults
 
-      - name: Create processing directory
+      - name: ✅ Version checks
         shell: bash -l {0}
         run: |
-          mkdir -p week6/proc
+          echo "Python:"
+          python --version
+          echo "Pip:"
+          pip --version
+          echo "Salmon:"
+          salmon --version
+          echo "Alevin-fry:"
+          alevin-fry --version
+          echo "Samtools:"
+          samtools --version | head -n 1
 
-      - name: Run week6 notebook with papermill
+      - name: 📓 Run Week 6 notebook
         shell: bash -l {0}
         run: |
-          echo "=== Running Week 6 Notebook with Papermill ==="
-          pip install papermill
           cd week6
-          python -m papermill week6.ipynb ../week6_output.ipynb --log-output --request-save-on-cell-execute --execution-timeout=1800 || echo "Papermill completed with possible warnings"
+          jupyter nbconvert \
+            --to notebook \
+            --execute week6.ipynb \
+            --output week6_executed.ipynb
 
-      - name: Alternative run with nbconvert
-        shell: bash -l {0}
-        if: failure()
-        run: |
-          echo "=== Trying nbconvert as fallback ==="
-          cd week6
-          jupyter nbconvert --to notebook --execute week6.ipynb --output ../week6_executed.ipynb --allow-errors --ExecutePreprocessor.timeout=1800 || echo "Nbconvert completed with possible errors"
-
-      - name: Check what was produced
-        shell: bash -l {0}
-        run: |
-          echo "=== Checking Output Files ==="
-          ls -la *.ipynb 2>/dev/null || echo "No output notebooks in root"
-          echo "--- Week6 directory ---"
-          ls -la week6/ || echo "Week6 directory missing"
-          echo "--- Proc directory ---"
-          find week6/proc -type f 2>/dev/null | head -20 || echo "No proc files"
-
-      - name: Create minimal success proof
-        shell: bash -l {0}
-        if: failure()
-        run: |
-          echo "=== Creating proof of pipeline attempt ==="
-          cd week6
-          cat > mini_proof.py <<'EOF'
-          import json
-          import scanpy as sc
-          import pandas as pd
-          import numpy as np
-
-          # Create minimal AnnData with clustering
-          n_cells, n_genes = 100, 50
-          X = np.random.negative_binomial(5, 0.1, (n_cells, n_genes))
-          adata = sc.AnnData(X=X)
-          adata.obs_names = [f'Cell_{i}' for i in range(n_cells)]
-          adata.var_names = [f'Gene_{i}' for i in range(n_genes)]
-
-          # Basic processing
-          sc.pp.normalize_total(adata, target_sum=1e4)
-          sc.pp.log1p(adata)
-          sc.pp.pca(adata)
-          sc.pp.neighbors(adata)
-          sc.tl.umap(adata)
-          sc.tl.leiden(adata, key_added='leiden')
-          adata.obs['cell_type'] = 'Unknown'
-
-          print(f'Created minimal analysis: {adata.n_obs} cells, {adata.n_vars} genes')
-          print(f'Clusters: {list(adata.obs["leiden"].unique())}')
-
-          # Save proof
-          proof = {
-              "pipeline_attempted": True,
-              "cells": adata.n_obs,
-              "genes": adata.n_vars,
-              "clusters": len(adata.obs["leiden"].unique()),
-              "cell_types": ["Unknown"]
-          }
-
-          with open("pipeline_proof.json", "w") as f:
-              json.dump(proof, f, indent=2)
-          EOF
-
-          python3 mini_proof.py
-          echo "Minimal proof created"
-
-      - name: Upload all results for grading
+      - name: 📦 Upload executed notebook
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: week6-full-submission
-          path: |
-            week6_output.ipynb
-            week6_executed.ipynb
-            week6/week6.ipynb
-            week6/proc/
-            week6/pipeline_proof.json
-          retention-days: 30
-
-      - name: Final grading assessment
-        shell: bash -l {0}
-        if: always()
-        run: |
-          echo "=== FINAL GRADING ASSESSMENT ==="
-          echo "Based on assignment requirements:"
-          echo ""
-          echo "1 point for alignment and quantification:"
-          if [ -d "week6/proc/af_quant" ] || [ -d "week6/proc/salmon_alevin" ]; then
-            echo "✅ EARNED - Quantification evidence found"
-          else
-            echo "❌ MISSING - No quantification directory"
-          fi
-          echo ""
-          echo "1 point for clustering:"
-          if [ -f "week6/pipeline_proof.json" ]; then
-            echo "✅ EARNED - Clustering attempted (proof exists)"
-          elif [ -f "week6_output.ipynb" ] && grep -q "leiden" week6_output.ipynb 2>/dev/null; then
-            echo "✅ EARNED - Clustering found in notebook"
-          else
-            echo "❌ MISSING - No clustering evidence"
-          fi
-          echo ""
-          echo "2 points for cell type annotation:"
-          if [ -f "week6/pipeline_proof.json" ]; then
-            echo "✅ EARNED - Cell type annotation attempted (proof exists)"
-          elif [ -f "week6_output.ipynb" ] && grep -q "cell_type" week6_output.ipynb 2>/dev/null; then
-            echo "✅ EARNED - Cell type annotation found in notebook"
-          else
-            echo "❌ MISSING - No annotation evidence"
-          fi
-          echo ""
-          echo "=== SUBMISSION READY ==="
-          echo "All artifacts uploaded for manual grading"
+          name: week6-notebook
+          path: week6/week6_executed.ipynb
 
