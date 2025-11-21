@@ -12,39 +12,27 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: "Checkout repository"
+      - name: "Checkout repo"
         uses: actions/checkout@v4
 
-      - name: "Install micromamba"
-        shell: bash
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y curl bzip2
-
-          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
-            | tar -xvj bin/micromamba
-
-          echo "MAMBA_ROOT_PREFIX=$HOME/micromamba" >> $GITHUB_ENV
-          echo "$HOME/micromamba/bin" >> $GITHUB_PATH
-
-      - name: "Create environment (salmon, alevin-fry, pyroe, scanpy, celltypist)"
-        shell: bash
-        run: |
-          eval "$($HOME/micromamba/bin/micromamba shell hook -s bash)"
-
-          micromamba create -y -n week6 -c bioconda -c conda-forge \
-            python=3.10 \
-            salmon \
-            alevin-fry \
-            pyroe \
-            scanpy \
-            celltypist \
-            nbconvert \
-            jupyter \
-            pandas \
+      - name: "Install micromamba + create env"
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          micromamba-version: "1.5.0"
+          environment-name: week6
+          create-args: >-
+            python=3.10
+            salmon
+            alevin-fry
+            pyroe
+            scanpy
+            celltypist
+            nbconvert
+            jupyter
+            pandas
             numpy
-
-          echo "Environment created."
+          channels: conda-forge,bioconda
+          init-shell: bash
 
       - name: "Debug: list data files"
         shell: bash
@@ -52,12 +40,10 @@ jobs:
           echo "=== Data check ==="
           find week6/data -type f | head -20
 
-      - name: "Run week6 notebook"
+      - name: "Execute week6 notebook"
         shell: bash
         run: |
-          eval "$($HOME/micromamba/bin/micromamba shell hook -s bash)"
           micromamba activate week6
-
           echo "=== Running notebook ==="
           jupyter nbconvert --to notebook --execute week6/week6.ipynb \
             --output week6_executed.ipynb
