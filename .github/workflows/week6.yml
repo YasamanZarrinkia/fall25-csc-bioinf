@@ -41,12 +41,12 @@ jobs:
       - name: Download CellTypist model
         shell: bash -l {0}
         run: |
-          python -c \"import celltypist; celltypist.models.download_models(force_update=True)\" || echo \"Model download may have issues\"
+          python -c "import celltypist; celltypist.models.download_models()" || echo "Model download may have issues"
 
       - name: Run week6 notebook
         shell: bash -l {0}
         run: |
-          echo \"=== Running Week 6 Notebook ===\"
+          echo "=== Running Week 6 Notebook ==="
           jupyter nbconvert --to notebook --execute week6/week6.ipynb \
             --output week6_executed.ipynb \
             --allow-errors \
@@ -55,25 +55,25 @@ jobs:
       - name: Check assignment completion
         shell: bash -l {0}
         run: |
-          echo \"=== ASSIGNMENT COMPLETION CHECK ===\"
+          echo "=== ASSIGNMENT COMPLETION CHECK ==="
           
           # Check for key outputs
-          if [ -d \"week6/proc/af_quant\" ]; then
-            echo \"✅ POINT 1: Alignment/quantification completed\"
+          if [ -d "week6/proc/af_quant" ]; then
+            echo "✅ POINT 1: Alignment/quantification completed"
           else
-            echo \"❌ POINT 1: Quantification missing\"
+            echo "❌ POINT 1: Quantification missing"
           fi
           
-          if grep -q \"leiden\" week6_executed.ipynb && grep -q \"UMAP\" week6_executed.ipynb; then
-            echo \"✅ POINT 2: Clustering completed (Leiden + UMAP)\"
+          if grep -q "leiden" week6_executed.ipynb && grep -q "UMAP" week6_executed.ipynb; then
+            echo "✅ POINT 2: Clustering completed (Leiden + UMAP)"
           else
-            echo \"❌ POINT 2: Clustering incomplete\"
+            echo "❌ POINT 2: Clustering incomplete"
           fi
           
-          if grep -q \"cell_type\" week6_executed.ipynb; then
-            echo \"✅ POINTS 3-4: Cell type annotation completed\"
+          if grep -q "cell_type" week6_executed.ipynb; then
+            echo "✅ POINTS 3-4: Cell type annotation completed"
           else
-            echo \"❌ POINTS 3-4: Cell type annotation missing\"
+            echo "❌ POINTS 3-4: Cell type annotation missing"
           fi
 
       - name: Upload results
