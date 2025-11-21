@@ -75,7 +75,7 @@ jobs:
         run: |
           echo "=== Creating proof of pipeline attempt ==="
           cd week6
-          python3 -c "
+          cat > mini_proof.py <<'EOF'
 import json
 import scanpy as sc
 import pandas as pd
@@ -98,20 +98,22 @@ sc.tl.leiden(adata, key_added='leiden')
 adata.obs['cell_type'] = 'Unknown'
 
 print(f'Created minimal analysis: {adata.n_obs} cells, {adata.n_vars} genes')
-print(f'Clusters: {list(adata.obs[\"leiden\"].unique())}')
+print(f'Clusters: {list(adata.obs["leiden"].unique())}')
 
 # Save proof
 proof = {
-    'pipeline_attempted': True,
-    'cells': adata.n_obs,
-    'genes': adata.n_vars,
-    'clusters': len(adata.obs['leiden'].unique()),
-    'cell_types': ['Unknown']
+    "pipeline_attempted": True,
+    "cells": adata.n_obs,
+    "genes": adata.n_vars,
+    "clusters": len(adata.obs["leiden"].unique()),
+    "cell_types": ["Unknown"]
 }
 
-with open('pipeline_proof.json', 'w') as f:
+with open("pipeline_proof.json", "w") as f:
     json.dump(proof, f, indent=2)
-"
+EOF
+
+          python3 mini_proof.py
           echo "Minimal proof created"
 
       - name: Upload all results for grading
@@ -161,3 +163,4 @@ with open('pipeline_proof.json', 'w') as f:
           echo ""
           echo "=== SUBMISSION READY ==="
           echo "All artifacts uploaded for manual grading"
+
