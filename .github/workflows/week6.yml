@@ -22,7 +22,8 @@ jobs:
             wget tar gzip unzip \
             python3 python3-pip python3-venv \
             build-essential \
-            libz-dev libbz2-dev liblzma-dev
+            libz-dev libbz2-dev liblzma-dev \
+            libtbb-dev libtbb12
 
       - name: 🐍 Set up Python environment
         run: |
@@ -45,12 +46,13 @@ jobs:
       - name: 🧬 Install Salmon binary (v1.10.0)
         run: |
           wget https://github.com/COMBINE-lab/salmon/releases/download/v1.10.0/salmon-1.10.0_linux_x86_64.tar.gz
-          tar -xzf salmon-1.10.0_linux_x86_64.tar.gz
 
           # Detect the extracted directory name (usually salmon-latest_linux_x86_64)
-          SALMON_DIR=$(tar -tf salmon-1.10.0_linux_x86_64.tar.gz | head -1 | cut -f1 -d"/")
+          SALMON_DIR=$(tar -tzf salmon-1.10.0_linux_x86_64.tar.gz | head -1 | cut -f1 -d"/")
           echo "Detected Salmon directory: $SALMON_DIR"
 
+          # Now actually extract and install the salmon binary
+          tar -xzf salmon-1.10.0_linux_x86_64.tar.gz
           sudo cp "$SALMON_DIR/bin/salmon" /usr/local/bin/salmon
           sudo chmod +x /usr/local/bin/salmon
 
