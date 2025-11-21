@@ -1,197 +1,72 @@
-name: Week 6 - Single-cell RNA-seq Analysis
+name: Week 6 Single-Cell Pipeline CI
 
 on:
   push:
     paths:
       - 'week6/**'
       - '.github/workflows/week6.yml'
-  pull_request:
-    paths:
-      - 'week6/**'
-      - '.github/workflows/week6.yml'
+  workflow_dispatch:
 
 jobs:
-  single-cell-analysis:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+  week6:
+    runs-on: ubuntu-22.04
 
     steps:
-    # -------------------------------
-    # 1. Checkout
-    # -------------------------------
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        lfs: true   # ok even if you don't use LFS
+      - name: 📥 Check out repository
+        uses: actions/checkout@v4
 
-    # -------------------------------
-    # 2. Miniconda + mamba
-    # -------------------------------
-    - name: Set up Miniconda
-      uses: conda-incubator/setup-miniconda@v2
-      with:
-        auto-update-conda: true
-        python-version: '3.10'
-        miniforge-variant: Mambaforge
-        channels: conda-forge,bioconda,defaults
-        channel-priority: strict
-        use-mamba: true
+      # Set up a conda/mamba env with all needed tools (salmon, alevin-fry, scanpy, etc.)
+      - name: 🧬 Set up micromamba environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          micromamba-version: "1.5.8"
+          environment-name: week6-env
+          create-args: >-
+            python=3.11
+            scanpy
+            anndata
+            celltypist
+            pyroe
+            jupyter
+            matplotlib
+            pandas
+            numpy
+            scipy
+            salmon
+            alevin-fry
+            samtools
+          condarc: |
+            channels:
+              - conda-forge
+              - bioconda
+              - defaults
 
-    # -------------------------------
-    # 3. System deps
-    # -------------------------------
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y build-essential zlib1g-dev git
+      - name: ✅ Version checks
+        shell: bash -l {0}
+        run: |
+          echo "Python:"
+          python --version
+          echo "Pip:"
+          pip --version
+          echo "Salmon:"
+          salmon --version
+          echo "Alevin-fry:"
+          alevin-fry --version
+          echo "Samtools:"
+          samtools --version | head -n 1
 
-    # -------------------------------
-    # 4. Install bioinformatics tools
-    # -------------------------------
-    - name: Install bioinformatics tools (salmon, alevin-fry)
-      shell: bash -el {0}
-      run: |
-        mamba install -y -c bioconda -c conda-forge salmon=1.10.0 alevin-fry
+      - name: 📓 Run Week 6 notebook
+        shell: bash -l {0}
+        run: |
+          cd week6
+          jupyter nbconvert \
+            --to notebook \
+            --execute week6.ipynb \
+            --output week6_executed.ipynb
 
-        echo "=== Versions ==="
-        salmon --version
-        alevin-fry --version
-
-    # -------------------------------
-    # 5. Python & notebook deps
-    # -------------------------------
-    - name: Install Python packages
-      shell: bash -el {0}
-      run: |
-        pip install --upgrade pip setuptools wheel
-
-        # Core Jupyter tools
-        pip install jupyter nbconvert nbformat
-
-        # Single-cell stack
-        pip install scanpy==1.9.6 anndata pandas numpy scipy matplotlib seaborn
-        pip install pyroe celltypist leidenalg python-igraph
-
-        python -c "import scanpy; import anndata; print('scanpy:', scanpy.__version__); print('anndata:', anndata.__version__)"
-
-    # -------------------------------
-    # 6. (Optional) sanity-check data presence
-    # -------------------------------
-    - name: Check for required data files
-      working-directory: week6
-      run: |
-        echo "Checking for required input files (toy dataset)..."
-
-        REQUIRED_FILES=(
-          "data/toy_read_fastq/selected_R1_reads.fastq"
-          "data/toy_read_fastq/selected_R2_reads.fastq"
-          "data/toy_human_ref/fasta/genome.fa"
-          "data/toy_human_ref/fasta/genome.fa.fai"
-          "data/toy_human_ref/genes/genes.gtf"
-        )
-
-        MISSING=0
-        for file in "${REQUIRED_FILES[@]}"; do
-          if [ -f "$file" ]; then
-            echo "✓ Found: $file"
-          else
-            echo "✗ Missing: $file"
-            MISSING=$((MISSING + 1))
-          fi
-        done
-
-        if [ $MISSING -gt 0 ]; then
-          echo "⚠ Warning: $MISSING required file(s) missing."
-          echo "   If the notebook expects them, execution will fail below."
-        else
-          echo "✓ All required data files present"
-        fi
-
-    # -------------------------------
-    # 7. Execute the notebook
-    # -------------------------------
-    - name: Execute week6 notebook
-      shell: bash -el {0}
-      working-directory: week6
-      run: |
-        echo "Executing week6.ipynb with nbconvert..."
-        jupyter nbconvert --to notebook --execute week6.ipynb \
-          --inplace \
-          --ExecutePreprocessor.timeout=3600
-        echo "✓ Notebook execution completed"
-
-    # -------------------------------
-    # 8. Validate expected outputs
-    # -------------------------------
-    - name: Validate outputs
-      working-directory: week6
-      run: |
-        echo "Validating generated outputs..."
-
-        EXPECTED_OUTPUTS=(
-          "data/week6_scrnaseq_processed.h5ad"
-          "data/qc_metrics.png"
-          "data/hvg.png"
-          "data/pca_variance.png"
-          "data/umap_qc.png"
-          "data/clustering_results.png"
-          "data/marker_genes.png"
-        )
-
-        MISSING=0
-        for file in "${EXPECTED_OUTPUTS[@]}"; do
-          if [ -f "$file" ]; then
-            echo "✓ Generated: $file"
-            ls -lh "$file"
-          else
-            echo "✗ Missing: $file"
-            MISSING=$((MISSING + 1))
-          fi
-        done
-
-        if [ $MISSING -gt 0 ]; then
-          echo "❌ Error: $MISSING expected output(s) not generated!"
-          exit 1
-        else
-          echo "✓ All expected outputs generated successfully"
-        fi
-
-    # -------------------------------
-    # 9. Check notebook for errors
-    # -------------------------------
-    - name: Check notebook execution status
-      run: |
-        if [ -f "week6/week6.ipynb" ]; then
-          echo "✓ Notebook exists"
-          if grep -q '"output_type": "error"' week6/week6.ipynb; then
-            echo "❌ Notebook contains execution errors!"
-            exit 1
-          else
-            echo "✓ Notebook executed without errors"
-          fi
-        else
-          echo "❌ Notebook not found!"
-          exit 1
-        fi
-
-    # -------------------------------
-    # 10. Upload artifacts
-    # -------------------------------
-    - name: Upload analysis results
-      if: success()
-      uses: actions/upload-artifact@v3
-      with:
-        name: week6-single-cell-results
-        path: |
-          week6/data/*.h5ad
-          week6/data/*.png
-        retention-days: 14
-
-    - name: Upload executed notebook
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: week6-executed-notebook
-        path: week6/week6.ipynb
-        retention-days: 14
+      - name: 📦 Upload executed notebook
+        uses: actions/upload-artifact@v4
+        with:
+          name: week6-notebook
+          path: week6/week6_executed.ipynb
 
