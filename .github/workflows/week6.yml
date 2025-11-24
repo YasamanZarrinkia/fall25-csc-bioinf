@@ -1,4 +1,4 @@
-name: Week 6 Single-Cell Pipeline CI
+name: Week6 Single-Cell Pipeline CI
 
 on:
   push:
@@ -10,294 +10,54 @@ on:
 jobs:
   week6:
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
-    
+
     steps:
-      - name: 📥 Check out repository
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
+
+      - name: 🧬 Set up micromamba environment
+        uses: mamba-org/setup-micromamba@v2
         with:
-          lfs: true
-      
-      - name: 🗄️ Cache Salmon index
-        uses: actions/cache@v3
-        with:
-          path: data/salmon_index
-          key: salmon-index-v1-${{ hashFiles('data/splici_ref/splici_fl86.fa') }}
-          restore-keys: |
-            salmon-index-v1-
-      
-      - name: 🗄️ Cache splici reference
-        uses: actions/cache@v3
-        with:
-          path: data/splici_ref
-          key: splici-ref-v1-${{ hashFiles('data/toy_human_ref/**') }}
-          restore-keys: |
-            splici-ref-v1-
-      
-      - name: 🗄️ Cache alevin output
-        uses: actions/cache@v3
-        with:
-          path: data/alevin_output
-          key: alevin-output-v1-${{ hashFiles('data/toy_read_fastq/*.fastq') }}
-          restore-keys: |
-            alevin-output-v1-
-      
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      - name: 🧬 Install Conda (minimal)
-        run: |
-          echo "Installing Miniforge for bioinformatics tools only..."
-          wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O miniforge.sh
-          bash miniforge.sh -b -p $HOME/miniforge
-          source "$HOME/miniforge/etc/profile.d/conda.sh"
-          conda config --set always_yes yes --set changeps1 no
-          echo "✓ Miniforge installed"
-      
-      - name: 🔬 Install bioinformatics tools via conda
-        run: |
-          source "$HOME/miniforge/etc/profile.d/conda.sh"
-          source "$HOME/miniforge/etc/profile.d/mamba.sh"
-          
-          echo "Installing salmon, alevin-fry, and samtools..."
-          
-          # Install only the bioinformatics tools that require conda
-          mamba install -y -c bioconda -c conda-forge \
-            salmon=1.10.0 \
-            alevin-fry \
-            samtools
-          
-          # Add to PATH
-          echo "$HOME/miniforge/bin" >> $GITHUB_PATH
-          
-          echo "✓ Bioinformatics tools installed"
-      
-      - name: 📦 Install Python packages via pip
-        run: |
-          echo "Upgrading pip..."
-          python -m pip install --upgrade pip setuptools wheel
-          
-          echo "Installing analysis packages..."
-          pip install --no-cache-dir \
-            scanpy \
-            anndata \
-            pandas \
-            numpy \
-            scipy \
-            matplotlib \
-            seaborn \
-            jupyter \
-            nbconvert \
-            nbformat \
-            leidenalg \
-            python-igraph \
-            pyroe \
+          micromamba-version: latest
+          environment-name: week6-env
+          create-args: >-
+            python=3.11
+            scanpy
+            anndata
             celltypist
-          
-          echo "✓ All Python packages installed"
-      
-      - name: 💾 Check system resources
-        run: |
-          echo "============================================"
-          echo "System Resources"
-          echo "============================================"
-          echo "CPU cores: $(nproc)"
-          echo ""
-          echo "Memory:"
-          free -h
-          echo ""
-          echo "Disk space:"
-          df -h .
-          echo "============================================"
-      
-      - name: ✅ Version checks
-        run: |
-          echo "============================================"
-          echo "Software Versions"
-          echo "============================================"
-          echo "Python: $(python --version)"
-          echo "Pip: $(pip --version)"
-          echo ""
-          echo "Bioinformatics tools:"
-          salmon --version 2>&1 | head -1 || echo "  Salmon: ERROR"
-          alevin-fry --version || echo "  Alevin-fry: ERROR"
-          samtools --version | head -1 || echo "  Samtools: ERROR"
-          echo ""
-          echo "Python packages:"
-          python -c "import scanpy; print(f'  Scanpy: {scanpy.__version__}')"
-          python -c "import anndata; print(f'  AnnData: {anndata.__version__}')"
-          python -c "import pyroe; print('  PyROE: installed')"
-          python -c "import celltypist; print('  CellTypist: installed')"
-          python -c "import leidenalg; print('  Leidenalg: installed')"
-          python -c "import pandas; print(f'  Pandas: {pandas.__version__}')"
-          echo "============================================"
-      
-      - name: 📂 Check data files
-        run: |
-          echo "============================================"
-          echo "Checking for required data files"
-          echo "============================================"
-          
-          REQUIRED=(
-            "data/toy_read_fastq/selected_R1_reads.fastq"
-            "data/toy_read_fastq/selected_R2_reads.fastq"
-            "data/toy_human_ref/fasta/genome.fa"
-            "data/toy_human_ref/fasta/genome.fa.fai"
-            "data/toy_human_ref/genes/genes.gtf"
-          )
-          
-          MISSING=0
-          for file in "${REQUIRED[@]}"; do
-            if [ -f "$file" ]; then
-              echo "✓ $file ($(ls -lh "$file" | awk '{print $5}'))"
-            else
-              echo "✗ $file (MISSING)"
-              MISSING=$((MISSING + 1))
-            fi
-          done
-          
-          [ $MISSING -eq 0 ] && echo "✓ All files present" || echo "⚠ $MISSING file(s) missing"
-          echo "============================================"
-      
-      - name: 🗂️ Check cache status
-        run: |
-          echo "============================================"
-          echo "Cache Status"
-          echo "============================================"
-          [ -f "data/splici_ref/splici_fl86.fa" ] && echo "✓ Splici cached" || echo "○ Splici not cached"
-          [ -f "data/salmon_index/versionInfo.json" ] && echo "✓ Index cached" || echo "○ Index not cached"
-          [ -d "data/alevin_output" ] && echo "✓ Alevin cached" || echo "○ Alevin not cached"
-          echo "============================================"
-      
-      - name: 📓 Execute notebook
-        run: |
-          cd week6
-          
-          echo "============================================"
-          echo "Executing Jupyter Notebook"
-          echo "============================================"
-          echo "Start: $(date)"
-          
-          # Ensure conda tools are in PATH
-          export PATH="$HOME/miniforge/bin:$PATH"
-          
-          # Set memory limit (6GB)
-          ulimit -v 6000000 2>/dev/null || true
-          
-          # Execute notebook
+            pyroe
+            jupyter
+            matplotlib
+            pandas
+            numpy
+            scipy
+            salmon
+            alevin-fry
+          condarc: |
+            channels:
+              - conda-forge
+              - bioconda
+              - defaults
+
+      - name: 🔍 Version checks
+        shell: bash -lc "
+          python --version;
+          salmon --version;
+          alevin-fry --version;
+        "
+
+      - name: 📓 Execute Week 6 notebook
+        shell: bash -lc "
+          cd week6 && \
           jupyter nbconvert \
             --to notebook \
             --execute week6.ipynb \
-            --output week6_executed.ipynb \
-            --ExecutePreprocessor.timeout=3600 \
-            --ExecutePreprocessor.kernel_name=python3
-          
-          EXIT_CODE=$?
-          echo "End: $(date)"
-          echo "Exit code: $EXIT_CODE"
-          echo "============================================"
-          
-          exit $EXIT_CODE
-      
-      - name: ✅ Validate outputs
-        if: success()
-        run: |
-          echo "============================================"
-          echo "Validating Outputs"
-          echo "============================================"
-          
-          EXPECTED=(
-            "data/annotated_adata.h5ad"
-            "data/cell_annotations.csv"
-            "data/clustering_results.png"
-            "data/annotated_clusters.png"
-            "data/qc_metrics.png"
-            "data/marker_genes.png"
-          )
-          
-          MISSING=0
-          for file in "${EXPECTED[@]}"; do
-            if [ -f "$file" ]; then
-              echo "✓ $file ($(ls -lh "$file" | awk '{print $5}'))"
-            else
-              echo "✗ $file (MISSING)"
-              MISSING=$((MISSING + 1))
-            fi
-          done
-          
-          if [ $MISSING -gt 0 ]; then
-            echo "❌ $MISSING output(s) missing!"
-            exit 1
-          fi
-          
-          echo "✓ All outputs generated"
-          echo "============================================"
-      
-      - name: 📋 Check execution status
-        if: always()
-        run: |
-          cd week6
-          if [ -f "week6_executed.ipynb" ]; then
-            if grep -q '"output_type": "error"' week6_executed.ipynb; then
-              echo "⚠ Notebook has errors"
-              grep -A 5 '"output_type": "error"' week6_executed.ipynb | head -20
-            else
-              echo "✓ Notebook executed cleanly"
-            fi
-          fi
-      
+            --output week6_executed.ipynb
+        "
+
       - name: 📦 Upload executed notebook
-        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: week6-executed-notebook
+          name: week6-notebook
           path: week6/week6_executed.ipynb
-          retention-days: 30
-      
-      - name: 📊 Upload results
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: week6-analysis-results
-          path: |
-            data/*.h5ad
-            data/*.csv
-            data/*.png
-          retention-days: 30
-          if-no-files-found: warn
-      
-      - name: 🗂️ Upload logs (failure)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: week6-failure-logs
-          path: |
-            week6/*.ipynb
-            data/**/*.log
-          retention-days: 7
-          if-no-files-found: ignore
-      
-      - name: ✅ Success message
-        if: success()
-        run: |
-          echo "============================================"
-          echo "✅ SUCCESS - Week 6 Complete"
-          echo "============================================"
-          echo "✓ Alevin-fry quantification"
-          echo "✓ Leiden clustering"
-          echo "✓ CellTypist annotation"
-          echo "✓ All visualizations"
-          echo ""
-          echo "Ready for submission (4/4 points)"
-          echo "============================================"
-      
-      - name: ❌ Failure message
-        if: failure()
-        run: |
-          echo "============================================"
-          echo "❌ FAILURE"
-          echo "============================================"
-          echo "Check uploaded artifacts for details"
-          echo "============================================"
+
