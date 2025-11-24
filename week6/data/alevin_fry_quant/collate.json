@@ -1,0 +1,5 @@
+{
+  "cmd": "alevin-fry collate -i data/alevin_fry_quant -r data/alevin_output -t 4",
+  "compressed_output": false,
+  "version_str": "0.11.2"
+}

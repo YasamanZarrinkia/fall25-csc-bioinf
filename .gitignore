@@ -49,12 +49,4 @@ week5/out/
 week5/tmp/
 .DS_Store
 
-# Week 6 generated outputs (do NOT commit)
-week6/data/alevin_output/
-week6/data/alevin_fry_quant/
-week6/data/salmon_index/
-week6/data/splici_ref/
-week6/data/*.png
-week6/data/week6_scrnaseq_processed.h5ad
-week6/proc/
 

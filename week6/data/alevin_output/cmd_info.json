@@ -1,0 +1,11 @@
+{
+    "salmon_version": "1.10.3",
+    "libType": "ISR",
+    "index": "data/salmon_index",
+    "mates1": "data/toy_read_fastq/selected_R1_reads.fastq",
+    "mates2": "data/toy_read_fastq/selected_R2_reads.fastq",
+    "rad": [],
+    "chromiumV3": [],
+    "threads": "4",
+    "output": "data/alevin_output"
+}

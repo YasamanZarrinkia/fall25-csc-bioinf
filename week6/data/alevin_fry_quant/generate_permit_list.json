@@ -1,0 +1,18 @@
+{
+  "cmd": "alevin-fry generate-permit-list --input data/alevin_output --expected-ori fw --output-dir data/alevin_fry_quant --knee-distance",
+  "expected_ori": "+",
+  "gpl_options": {
+    "cmdline": "alevin-fry generate-permit-list --input data/alevin_output --expected-ori fw --output-dir data/alevin_fry_quant --knee-distance",
+    "expected_ori": "Forward",
+    "fmeth": "KneeFinding",
+    "input_dir": "data/alevin_output",
+    "output_dir": "data/alevin_fry_quant",
+    "threads": 8,
+    "velo_mode": false,
+    "version": "0.11.2"
+  },
+  "max-ambig-record": 24,
+  "permit-list-type": "filtered",
+  "velo_mode": false,
+  "version_str": "0.11.2"
+}

@@ -1,0 +1,30 @@
+{
+  "alt_resolved_cell_numbers": [],
+  "cmd": "alevin-fry quant -i data/alevin_fry_quant -o data/alevin_fry_quant -t 4 --tg-map data/splici_ref/splici_fl86_t2g_3col.tsv --resolution cr-like --use-mtx",
+  "dump_eq": false,
+  "empty_resolved_cell_numbers": [],
+  "num_genes": 60,
+  "num_quantified_cells": 139,
+  "quant_options": {
+    "cmdline": "alevin-fry quant -i data/alevin_fry_quant -o data/alevin_fry_quant -t 4 --tg-map data/splici_ref/splici_fl86_t2g_3col.tsv --resolution cr-like --use-mtx",
+    "dump_eq": false,
+    "filter_list": null,
+    "init_uniform": false,
+    "input_dir": "data/alevin_fry_quant",
+    "large_graph_thresh": 0,
+    "num_bootstraps": 0,
+    "num_threads": 4,
+    "output_dir": "data/alevin_fry_quant",
+    "pug_exact_umi": false,
+    "resolution": "CellRangerLike",
+    "sa_model": "WinnerTakeAll",
+    "small_thresh": 10,
+    "summary_stat": false,
+    "tg_map": "data/splici_ref/splici_fl86_t2g_3col.tsv",
+    "use_mtx": true,
+    "version": "0.11.2"
+  },
+  "resolution_strategy": "CellRangerLike",
+  "usa_mode": true,
+  "version_str": "0.11.2"
+}
