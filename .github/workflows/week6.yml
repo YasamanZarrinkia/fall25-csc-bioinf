@@ -1,4 +1,4 @@
-name: Week6 Single-Cell Pipeline CI
+name: Week 6 Single-Cell Pipeline CI
 
 on:
   push:
@@ -12,10 +12,11 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: 📥 Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: 🧬 Set up micromamba environment
+      # Create a micromamba env with everything needed for week6.ipynb
+      - name: Set up micromamba environment
         uses: mamba-org/setup-micromamba@v2
         with:
           micromamba-version: latest
@@ -33,29 +34,37 @@ jobs:
             scipy
             salmon
             alevin-fry
+            samtools
           condarc: |
             channels:
               - conda-forge
               - bioconda
               - defaults
 
-      - name: 🔍 Version checks
-        shell: bash -lc "
-          python --version;
-          salmon --version;
-          alevin-fry --version;
-        "
+      - name: Version checks
+        shell: bash -l {0}
+        run: |
+          echo "Python:"
+          python --version
+          echo "Pip:"
+          pip --version
+          echo "Salmon:"
+          salmon --version
+          echo "Alevin-fry:"
+          alevin-fry --version
+          echo "Samtools:"
+          samtools --version | head -n 1
 
-      - name: 📓 Execute Week 6 notebook
-        shell: bash -lc "
-          cd week6 && \
+      - name: Run Week 6 notebook
+        shell: bash -l {0}
+        run: |
+          cd week6
           jupyter nbconvert \
             --to notebook \
             --execute week6.ipynb \
             --output week6_executed.ipynb
-        "
 
-      - name: 📦 Upload executed notebook
+      - name: Upload executed notebook
         uses: actions/upload-artifact@v4
         with:
           name: week6-notebook
