@@ -1,0 +1,26 @@
+name: week6-env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  - python=3.11
+  - salmon=1.10.0
+  - alevin-fry
+  - samtools
+  - scanpy
+  - anndata
+  - pyroe
+  - leidenalg
+  - python-igraph
+  - celltypist
+  - pandas
+  - numpy
+  - scipy
+  - matplotlib
+  - seaborn
+  - jupyter
+  - ipykernel
+  - nbconvert
+  - nbformat
