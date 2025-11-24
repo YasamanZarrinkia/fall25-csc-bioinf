@@ -12,10 +12,6 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     
-    defaults:
-      run:
-        shell: bash -el {0}
-    
     steps:
       - name: 📥 Check out repository
         uses: actions/checkout@v4
@@ -49,19 +45,74 @@ jobs:
           restore-keys: |
             alevin-output-v1-
       
-      - name: 🐍 Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v3
+      - name: 🗄️ Cache conda packages
+        uses: actions/cache@v3
         with:
-          auto-update-conda: true
-          auto-activate-base: false
-          activate-environment: week6-env
-          environment-file: week6/environment.yml
-          python-version: "3.11"
-          miniforge-variant: Mambaforge
-          miniforge-version: latest
-          use-mamba: true
-          channels: conda-forge,bioconda,defaults
-          channel-priority: strict
+          path: ~/conda_pkgs_dir
+          key: conda-packages-${{ runner.os }}-${{ hashFiles('**/week6.yml') }}
+          restore-keys: |
+            conda-packages-${{ runner.os }}-
+      
+      - name: 🐍 Install Miniforge
+        run: |
+          echo "============================================"
+          echo "Installing Miniforge (mamba + conda)"
+          echo "============================================"
+          
+          # Download Miniforge installer
+          wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O miniforge.sh
+          
+          # Install Miniforge
+          bash miniforge.sh -b -p $HOME/miniforge
+          
+          # Initialize conda
+          source "$HOME/miniforge/etc/profile.d/conda.sh"
+          source "$HOME/miniforge/etc/profile.d/mamba.sh"
+          
+          # Update conda config
+          conda config --set always_yes yes --set changeps1 no
+          conda config --add channels conda-forge
+          conda config --add channels bioconda
+          conda config --set channel_priority strict
+          
+          # Update base environment
+          mamba update -n base -c conda-forge conda mamba
+          
+          echo "✓ Miniforge installed"
+          echo "Conda version: $(conda --version)"
+          echo "Mamba version: $(mamba --version)"
+      
+      - name: 🧬 Create conda environment
+        run: |
+          source "$HOME/miniforge/etc/profile.d/conda.sh"
+          source "$HOME/miniforge/etc/profile.d/mamba.sh"
+          
+          echo "============================================"
+          echo "Creating week6-env environment"
+          echo "============================================"
+          
+          # Create environment with all packages
+          mamba create -n week6-env -y \
+            python=3.11 \
+            salmon=1.10.0 \
+            alevin-fry \
+            samtools \
+            scanpy \
+            anndata \
+            pyroe \
+            leidenalg \
+            python-igraph \
+            celltypist \
+            pandas \
+            numpy \
+            scipy \
+            matplotlib \
+            seaborn \
+            jupyter \
+            nbconvert \
+            nbformat
+          
+          echo "✓ Environment created"
       
       - name: 💾 Check system resources
         run: |
@@ -79,12 +130,15 @@ jobs:
       
       - name: ✅ Version checks
         run: |
+          source "$HOME/miniforge/etc/profile.d/conda.sh"
+          conda activate week6-env
+          
           echo "============================================"
           echo "Software Versions"
           echo "============================================"
           echo "Python: $(python --version)"
           echo "Conda: $(conda --version)"
-          echo "Mamba: $(mamba --version 2>/dev/null || echo 'not available')"
+          echo "Mamba: $(mamba --version)"
           echo ""
           echo "Bioinformatics tools:"
           echo "  Salmon: $(salmon --version 2>&1 | head -1)"
@@ -94,9 +148,9 @@ jobs:
           echo "Python packages:"
           python -c "import scanpy; print(f'  Scanpy: {scanpy.__version__}')"
           python -c "import anndata; print(f'  AnnData: {anndata.__version__}')"
-          python -c "import pyroe; print('  PyROE: installed')" 2>/dev/null || echo "  PyROE: not found"
-          python -c "import celltypist; print('  CellTypist: installed')" 2>/dev/null || echo "  CellTypist: not found"
-          python -c "import leidenalg; print('  Leidenalg: installed')" 2>/dev/null || echo "  Leidenalg: not found"
+          python -c "import pyroe; print('  PyROE: installed')"
+          python -c "import celltypist; print('  CellTypist: installed')"
+          python -c "import leidenalg; print('  Leidenalg: installed')"
           echo "============================================"
       
       - name: 📂 Check data files
@@ -127,7 +181,6 @@ jobs:
           echo ""
           if [ $MISSING -gt 0 ]; then
             echo "⚠ Warning: $MISSING required file(s) missing."
-            echo "   These files should be in the repository."
           else
             echo "✓ All required data files present"
           fi
@@ -139,16 +192,15 @@ jobs:
           echo "Cache Status"
           echo "============================================"
           
-          if [ -d "data/splici_ref" ]; then
+          if [ -d "data/splici_ref" ] && [ -f "data/splici_ref/splici_fl86.fa" ]; then
             echo "✓ Splici reference cached"
-            ls -lh data/splici_ref/splici_fl86.fa 2>/dev/null || echo "  (empty)"
+            ls -lh data/splici_ref/splici_fl86.fa
           else
             echo "○ Splici reference not cached (will be built)"
           fi
           
           if [ -d "data/salmon_index" ] && [ -f "data/salmon_index/versionInfo.json" ]; then
             echo "✓ Salmon index cached"
-            ls -lh data/salmon_index/ | head -5
           else
             echo "○ Salmon index not cached (will be built)"
           fi
@@ -162,6 +214,9 @@ jobs:
       
       - name: 📓 Run Week 6 notebook
         run: |
+          source "$HOME/miniforge/etc/profile.d/conda.sh"
+          conda activate week6-env
+          
           cd week6
           
           echo "============================================"
@@ -223,7 +278,6 @@ jobs:
           echo ""
           if [ $MISSING -gt 0 ]; then
             echo "❌ Error: $MISSING expected output(s) not generated!"
-            echo "============================================"
             exit 1
           else
             echo "✓ All expected outputs generated successfully"
@@ -243,20 +297,11 @@ jobs:
           if [ -f "week6_executed.ipynb" ]; then
             echo "✓ Executed notebook exists"
             
-            # Check for errors in executed notebook
             if grep -q '"output_type": "error"' week6_executed.ipynb; then
               echo "⚠ Warning: Notebook contains execution errors"
-              echo ""
-              echo "Error details:"
-              grep -A 10 '"output_type": "error"' week6_executed.ipynb | head -20
             else
               echo "✓ Notebook executed without errors"
             fi
-            
-            # Count cells
-            CELL_COUNT=$(grep -c '"cell_type"' week6_executed.ipynb || echo "unknown")
-            echo "Total cells: $CELL_COUNT"
-            
           else
             echo "✗ Executed notebook not found"
           fi
@@ -273,17 +318,9 @@ jobs:
           echo "Commit: ${{ github.sha }}"
           echo "Workflow: ${{ github.workflow }}"
           echo "Run number: ${{ github.run_number }}"
-          echo "Job status: ${{ job.status }}"
           echo ""
-          echo "Completed steps:"
-          echo "  ✓ Environment setup"
-          echo "  ✓ Notebook execution"
-          echo "  ✓ Output validation"
-          echo "============================================"
-          
           if [ -d "data" ]; then
-            echo ""
-            echo "Generated files in data/:"
+            echo "Generated files:"
             ls -lh data/*.h5ad data/*.csv data/*.png 2>/dev/null || echo "  (none found)"
           fi
           echo "============================================"
@@ -305,7 +342,6 @@ jobs:
             data/*.h5ad
             data/*.csv
             data/*.png
-            data/*.pdf
           retention-days: 30
           if-no-files-found: warn
       
@@ -317,7 +353,6 @@ jobs:
           path: |
             week6/*.ipynb
             data/**/*.log
-            data/salmon_index/*.log
           retention-days: 7
           if-no-files-found: ignore
       
@@ -344,11 +379,5 @@ jobs:
           echo "❌ FAILURE - Week 6 Assignment Failed"
           echo "============================================"
           echo ""
-          echo "Please check:"
-          echo "  1. Uploaded artifacts for error logs"
-          echo "  2. Notebook execution errors"
-          echo "  3. Missing data files"
-          echo "  4. Memory/resource constraints"
-          echo ""
-          echo "See CI_TROUBLESHOOTING.md for debugging tips"
+          echo "Please check uploaded artifacts for details"
           echo "============================================"
